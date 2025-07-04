@@ -1,0 +1,450 @@
+================================================================================
+                    ESTRUCTURA DE BASE DE DATOS MONGODB
+                      SISTEMA DE RENTA DE AUTOS
+================================================================================
+
+NOMBRE DE LA BASE DE DATOS: car_rental_system
+
+================================================================================
+1. COLECCIÓN: users (Usuarios del Sistema)
+================================================================================
+
+Campos:
+- _id: ObjectId (Primary Key)
+- username: String (ÚNICO) - Nombre de usuario
+- password: String - Contraseña hasheada con bcrypt
+- role: String - Valores: 'empleado', 'encargado', 'dueno'
+- nombre: String - Nombre completo del usuario
+- email: String - Email del usuario
+- fechaCreacion: Date - Fecha de creación del usuario
+- estado: String - Valores: 'activo', 'inactivo'
+
+Índices:
+- { "username": 1 } UNIQUE
+- { "role": 1 }
+
+Ejemplo de documento:
+{
+  "_id": ObjectId("..."),
+  "username": "empleado1",
+  "password": "$2b$10$...", 
+  "role": "empleado",
+  "nombre": "Juan Pérez",
+  "email": "juan@empresa.com",
+  "fechaCreacion": ISODate("2024-01-15T00:00:00Z"),
+  "estado": "activo"
+}
+
+================================================================================
+2. COLECCIÓN: clients (Clientes)
+================================================================================
+
+Campos:
+- _id: ObjectId (Primary Key)
+- nombre: String - Nombre del cliente
+- apellido: String - Apellido del cliente
+- email: String (ÚNICO) - Email del cliente
+- telefono: String - Número de teléfono
+- direccion: String - Dirección completa
+- licencia: String (ÚNICO) - Número de licencia de conducir
+- fechaRegistro: Date - Fecha de registro en el sistema
+- estado: String - Valores: 'activo', 'inactivo'
+
+Índices:
+- { "email": 1 } UNIQUE
+- { "licencia": 1 } UNIQUE
+- { "estado": 1 }
+
+Ejemplo de documento:
+{
+  "_id": ObjectId("..."),
+  "nombre": "Juan",
+  "apellido": "Pérez",
+  "email": "juan.perez@email.com",
+  "telefono": "555-0123",
+  "direccion": "Calle Principal 123",
+  "licencia": "LIC123456",
+  "fechaRegistro": ISODate("2024-01-15T00:00:00Z"),
+  "estado": "activo"
+}
+
+================================================================================
+3. COLECCIÓN: cars (Vehículos)
+================================================================================
+
+Campos:
+- _id: ObjectId (Primary Key)
+- marca: String - Marca del vehículo (Toyota, Honda, etc.)
+- modelo: String - Modelo del vehículo (Corolla, Civic, etc.)
+- año: Number - Año del vehículo
+- color: String - Color del vehículo
+- placas: String (ÚNICO) - Placas del vehículo
+- numeroSerie: String (ÚNICO) - Número de serie/VIN
+- precioPorDia: Number - Precio de renta por día
+- estado: String - Valores: 'disponible', 'rentado', 'mantenimiento', 'fuera_servicio'
+- fechaRegistro: Date - Fecha de registro en el sistema
+- kilometraje: Number - Kilometraje actual del vehículo
+- combustible: String - Valores: 'gasolina', 'diesel', 'electrico', 'hibrido'
+- transmision: String - Valores: 'manual', 'automatica'
+- categoria: String - Valores: 'economico', 'compacto', 'intermedio', 'lujo', 'suv'
+
+Índices:
+- { "placas": 1 } UNIQUE
+- { "numeroSerie": 1 } UNIQUE
+- { "estado": 1 }
+- { "categoria": 1 }
+- { "precioPorDia": 1 }
+
+Ejemplo de documento:
+{
+  "_id": ObjectId("..."),
+  "marca": "Toyota",
+  "modelo": "Corolla",
+  "año": 2022,
+  "color": "Blanco",
+  "placas": "ABC-123",
+  "numeroSerie": "TOY123456789",
+  "precioPorDia": 800,
+  "estado": "disponible",
+  "fechaRegistro": ISODate("2024-01-15T00:00:00Z"),
+  "kilometraje": 15000,
+  "combustible": "gasolina",
+  "transmision": "automatica",
+  "categoria": "compacto"
+}
+
+================================================================================
+4. COLECCIÓN: rentals (Rentas)
+================================================================================
+
+Campos:
+- _id: ObjectId (Primary Key)
+- clienteId: ObjectId - Referencia a clients._id
+- autoId: ObjectId - Referencia a cars._id
+- fechaInicio: Date - Fecha de inicio de la renta
+- fechaFin: Date - Fecha programada de fin
+- fechaDevolucionReal: Date (OPCIONAL) - Fecha real de devolución
+- precioPorDia: Number - Precio por día al momento de la renta
+- diasRentados: Number - Número de días rentados
+- montoTotal: Number - Monto total de la renta
+- estado: String - Valores: 'activa', 'completada', 'cancelada', 'vencida'
+- observaciones: String (OPCIONAL) - Observaciones adicionales
+- fechaRegistro: Date - Fecha de registro de la renta
+
+Índices:
+- { "clienteId": 1 }
+- { "autoId": 1 }
+- { "estado": 1 }
+- { "fechaInicio": 1, "fechaFin": 1 }
+
+Ejemplo de documento:
+{
+  "_id": ObjectId("..."),
+  "clienteId": ObjectId("..."),
+  "autoId": ObjectId("..."),
+  "fechaInicio": ISODate("2024-03-01T00:00:00Z"),
+  "fechaFin": ISODate("2024-03-05T00:00:00Z"),
+  "fechaDevolucionReal": ISODate("2024-03-05T00:00:00Z"),
+  "precioPorDia": 800,
+  "diasRentados": 4,
+  "montoTotal": 3200,
+  "estado": "completada",
+  "observaciones": "Cliente frecuente",
+  "fechaRegistro": ISODate("2024-02-28T00:00:00Z")
+}
+
+================================================================================
+5. COLECCIÓN: repairs (Reparaciones)
+================================================================================
+
+Campos:
+- _id: ObjectId (Primary Key)
+- autoId: ObjectId - Referencia a cars._id
+- tipoReparacion: String - Tipo de reparación
+- descripcion: String - Descripción detallada de la reparación
+- costo: Number - Costo de la reparación
+- fechaInicio: Date - Fecha de inicio de la reparación
+- fechaFinalizacion: Date (OPCIONAL) - Fecha de finalización
+- estado: String - Valores: 'pendiente', 'en_proceso', 'completada', 'cancelada'
+- taller: String (OPCIONAL) - Nombre del taller
+- tecnico: String (OPCIONAL) - Nombre del técnico
+- observaciones: String (OPCIONAL) - Observaciones adicionales
+- fechaRegistro: Date - Fecha de registro de la reparación
+
+Tipos de Reparación Sugeridos:
+- "Mantenimiento preventivo"
+- "Reparación menor"
+- "Reparación mayor"
+- "Cambio de llantas"
+- "Reparación de motor"
+- "Reparación de transmisión"
+- "Sistema eléctrico"
+- "Sistema de frenos"
+- "Aire acondicionado"
+- "Otro"
+
+Índices:
+- { "autoId": 1 }
+- { "fechaInicio": 1 }
+- { "estado": 1 }
+- { "costo": 1 }
+
+Ejemplo de documento:
+{
+  "_id": ObjectId("..."),
+  "autoId": ObjectId("..."),
+  "tipoReparacion": "Mantenimiento preventivo",
+  "descripcion": "Cambio de aceite y filtros",
+  "costo": 1500,
+  "fechaInicio": ISODate("2024-03-01T00:00:00Z"),
+  "fechaFinalizacion": ISODate("2024-03-02T00:00:00Z"),
+  "estado": "completada",
+  "taller": "Taller Central",
+  "tecnico": "Carlos Méndez",
+  "observaciones": "Servicio completo realizado",
+  "fechaRegistro": ISODate("2024-02-28T00:00:00Z")
+}
+
+================================================================================
+6. COLECCIÓN: returns (Devoluciones)
+================================================================================
+
+Campos:
+- _id: ObjectId (Primary Key)
+- rentalId: ObjectId - Referencia a rentals._id
+- autoId: ObjectId - Referencia a cars._id
+- fechaDevolucion: Date - Fecha de devolución
+- estadoVehiculo: String - Valores: 'bueno', 'regular', 'malo'
+- kilometrajeDevolucion: Number - Kilometraje al momento de devolución
+- danosReportados: String (OPCIONAL) - Descripción de daños
+- multasPendientes: Number - Monto de multas pendientes
+- observaciones: String (OPCIONAL) - Observaciones adicionales
+- fechaRegistro: Date - Fecha de registro de la devolución
+
+Índices:
+- { "rentalId": 1 }
+- { "autoId": 1 }
+- { "fechaDevolucion": 1 }
+
+Ejemplo de documento:
+{
+  "_id": ObjectId("..."),
+  "rentalId": ObjectId("..."),
+  "autoId": ObjectId("..."),
+  "fechaDevolucion": ISODate("2024-03-05T00:00:00Z"),
+  "estadoVehiculo": "bueno",
+  "kilometrajeDevolucion": 15250,
+  "danosReportados": null,
+  "multasPendientes": 0,
+  "observaciones": "Vehículo devuelto en excelente estado",
+  "fechaRegistro": ISODate("2024-03-05T00:00:00Z")
+}
+
+================================================================================
+7. COLECCIÓN: alerts (Alertas del Sistema)
+================================================================================
+
+Campos:
+- _id: ObjectId (Primary Key)
+- tipo: String - Tipo de alerta
+- autoId: ObjectId (OPCIONAL) - Referencia a cars._id
+- rentalId: ObjectId (OPCIONAL) - Referencia a rentals._id
+- mensaje: String - Mensaje descriptivo de la alerta
+- estado: String - Valores: 'activa', 'resuelta'
+- prioridad: String - Valores: 'alta', 'media', 'baja'
+- fechaCreacion: Date - Fecha de creación de la alerta
+- fechaResolucion: Date (OPCIONAL) - Fecha de resolución
+
+Tipos de Alerta:
+- "vehiculo_mal_estado"
+- "renta_vencida"
+- "mantenimiento_programado"
+- "multa_pendiente"
+
+Índices:
+- { "estado": 1 }
+- { "tipo": 1 }
+- { "fechaCreacion": 1 }
+
+Ejemplo de documento:
+{
+  "_id": ObjectId("..."),
+  "tipo": "vehiculo_mal_estado",
+  "autoId": ObjectId("..."),
+  "rentalId": null,
+  "mensaje": "Vehículo devuelto en mal estado: Rayón en puerta lateral derecha",
+  "estado": "activa",
+  "prioridad": "alta",
+  "fechaCreacion": ISODate("2024-03-03T00:00:00Z"),
+  "fechaResolucion": null
+}
+
+================================================================================
+8. COLECCIÓN: financial_reports (Reportes Financieros)
+================================================================================
+
+Campos:
+- _id: ObjectId (Primary Key)
+- mes: String - Formato: "2024-03" (año-mes)
+- año: Number - Año del reporte
+- ingresosPorRentas: Number - Total de ingresos por rentas
+- gastosReparaciones: Number - Total gastado en reparaciones
+- gastosMantenimiento: Number - Total gastado en mantenimiento
+- gastosOperativos: Number - Gastos operativos
+- utilidadNeta: Number - Utilidad neta del mes
+- fechaCreacion: Date - Fecha de creación del reporte
+
+Índices:
+- { "mes": 1 } UNIQUE
+- { "año": 1 }
+
+Ejemplo de documento:
+{
+  "_id": ObjectId("..."),
+  "mes": "2024-03",
+  "año": 2024,
+  "ingresosPorRentas": 48000,
+  "gastosReparaciones": 15500,
+  "gastosMantenimiento": 2800,
+  "gastosOperativos": 11200,
+  "utilidadNeta": 18500,
+  "fechaCreacion": ISODate("2024-04-01T00:00:00Z")
+}
+
+================================================================================
+RELACIONES ENTRE COLECCIONES
+================================================================================
+
+1. rentals.clienteId → clients._id
+2. rentals.autoId → cars._id
+3. repairs.autoId → cars._id
+4. returns.rentalId → rentals._id
+5. returns.autoId → cars._id
+6. alerts.autoId → cars._id (opcional)
+7. alerts.rentalId → rentals._id (opcional)
+
+================================================================================
+COMANDOS PARA CREAR ÍNDICES
+================================================================================
+
+// Colección: users
+db.users.createIndex({ "username": 1 }, { unique: true })
+db.users.createIndex({ "role": 1 })
+
+// Colección: clients
+db.clients.createIndex({ "email": 1 }, { unique: true })
+db.clients.createIndex({ "licencia": 1 }, { unique: true })
+db.clients.createIndex({ "estado": 1 })
+
+// Colección: cars
+db.cars.createIndex({ "placas": 1 }, { unique: true })
+db.cars.createIndex({ "numeroSerie": 1 }, { unique: true })
+db.cars.createIndex({ "estado": 1 })
+db.cars.createIndex({ "categoria": 1 })
+db.cars.createIndex({ "precioPorDia": 1 })
+
+// Colección: rentals
+db.rentals.createIndex({ "clienteId": 1 })
+db.rentals.createIndex({ "autoId": 1 })
+db.rentals.createIndex({ "estado": 1 })
+db.rentals.createIndex({ "fechaInicio": 1, "fechaFin": 1 })
+
+// Colección: repairs
+db.repairs.createIndex({ "autoId": 1 })
+db.repairs.createIndex({ "fechaInicio": 1 })
+db.repairs.createIndex({ "estado": 1 })
+db.repairs.createIndex({ "costo": 1 })
+
+// Colección: returns
+db.returns.createIndex({ "rentalId": 1 })
+db.returns.createIndex({ "autoId": 1 })
+db.returns.createIndex({ "fechaDevolucion": 1 })
+
+// Colección: alerts
+db.alerts.createIndex({ "estado": 1 })
+db.alerts.createIndex({ "tipo": 1 })
+db.alerts.createIndex({ "fechaCreacion": 1 })
+
+// Colección: financial_reports
+db.financial_reports.createIndex({ "mes": 1 }, { unique: true })
+db.financial_reports.createIndex({ "año": 1 })
+
+================================================================================
+VARIABLES DE ENTORNO NECESARIAS
+================================================================================
+
+MONGODB_URI=mongodb://localhost:27017/car_rental_system
+# Para MongoDB Atlas:
+# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/car_rental_system
+
+# Opcional para autenticación
+JWT_SECRET=tu_clave_secreta_aqui
+BCRYPT_ROUNDS=10
+
+================================================================================
+USUARIOS DE PRUEBA SUGERIDOS
+================================================================================
+
+// Empleado
+{
+  "username": "empleado1",
+  "password": "123456", // Se debe hashear con bcrypt
+  "role": "empleado",
+  "nombre": "Juan Empleado",
+  "email": "empleado@empresa.com",
+  "estado": "activo"
+}
+
+// Encargado
+{
+  "username": "encargado1",
+  "password": "123456", // Se debe hashear con bcrypt
+  "role": "encargado", 
+  "nombre": "María Encargada",
+  "email": "encargado@empresa.com",
+  "estado": "activo"
+}
+
+// Dueño
+{
+  "username": "dueno1",
+  "password": "123456", // Se debe hashear con bcrypt
+  "role": "dueno",
+  "nombre": "Carlos Dueño", 
+  "email": "dueno@empresa.com",
+  "estado": "activo"
+}
+
+================================================================================
+NOTAS IMPORTANTES PARA EL EQUIPO DE BD Y BACKEND
+================================================================================
+
+1. VALIDACIONES REQUERIDAS:
+   - Email único en clients y users
+   - Username único en users
+   - Placas y numeroSerie únicos en cars
+   - Licencia única en clients
+
+2. CAMPOS CALCULADOS:
+   - rentals.diasRentados = fechaFin - fechaInicio
+   - rentals.montoTotal = diasRentados * precioPorDia
+
+3. TRIGGERS/LÓGICA DE NEGOCIO:
+   - Al crear rental: cambiar cars.estado a "rentado"
+   - Al completar rental: cambiar cars.estado según returns.estadoVehiculo
+   - Al crear return con estadoVehiculo="malo": crear alert automática
+
+4. CONSULTAS FRECUENTES A OPTIMIZAR:
+   - Búsqueda de autos disponibles por filtros
+   - Rentas activas por cliente
+   - Reportes financieros por periodo
+   - Alertas activas por tipo
+
+5. BACKUP Y MANTENIMIENTO:
+   - Configurar backup automático diario
+   - Logs de operaciones críticas
+   - Monitoreo de performance en consultas complejas
+
+================================================================================
+FIN DEL DOCUMENTO
+================================================================================

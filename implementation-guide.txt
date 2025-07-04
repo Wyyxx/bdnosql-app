@@ -1,0 +1,1729 @@
+================================================================================
+                    GUÍA COMPLETA DE IMPLEMENTACIÓN
+                      SISTEMA DE RENTA DE AUTOS
+================================================================================
+
+ÍNDICE:
+1. CONFIGURACIÓN INICIAL
+2. IMPLEMENTACIÓN DE BASE DE DATOS
+3. BACKEND - APIs Y FUNCIONES
+4. AUTENTICACIÓN Y SEGURIDAD
+5. LÓGICA DE NEGOCIO
+6. VALIDACIONES
+7. TESTING
+8. DEPLOYMENT
+9. MANTENIMIENTO
+
+================================================================================
+1. CONFIGURACIÓN INICIAL
+================================================================================
+
+1.1 DEPENDENCIAS NECESARIAS
+----------------------------
+
+Backend (Node.js/Express):
+npm install express cors helmet morgan
+npm install mongodb bcryptjs jsonwebtoken
+npm install joi express-validator
+npm install dotenv
+npm install -D nodemon @types/node typescript
+
+Frontend (ya implementado):
+npm install next react react-dom
+npm install @types/node @types/react @types/react-dom typescript
+npm install tailwindcss @tailwindcss/forms
+npm install lucide-react
+
+1.2 ESTRUCTURA DE CARPETAS BACKEND
+----------------------------------
+
+backend/
+├── src/
+│   ├── config/
+│   │   ├── database.js          # Configuración MongoDB
+│   │   └── auth.js              # Configuración JWT
+│   ├── models/
+│   │   ├── User.js              # Modelo de usuarios
+│   │   ├── Client.js            # Modelo de clientes
+│   │   ├── Car.js               # Modelo de autos
+│   │   ├── Rental.js            # Modelo de rentas
+│   │   ├── Repair.js            # Modelo de reparaciones
+│   │   ├── Return.js            # Modelo de devoluciones
+│   │   └── Alert.js             # Modelo de alertas
+│   ├── controllers/
+│   │   ├── authController.js    # Controlador de autenticación
+│   │   ├── clientController.js  # Controlador de clientes
+│   │   ├── carController.js     # Controlador de autos
+│   │   ├── rentalController.js  # Controlador de rentas
+│   │   ├── repairController.js  # Controlador de reparaciones
+│   │   ├── returnController.js  # Controlador de devoluciones
+│   │   ├── alertController.js   # Controlador de alertas
+│   │   └── reportController.js  # Controlador de reportes
+│   ├── middleware/
+│   │   ├── auth.js              # Middleware de autenticación
+│   │   ├── validation.js        # Middleware de validación
+│   │   └── errorHandler.js      # Manejo de errores
+│   ├── routes/
+│   │   ├── auth.js              # Rutas de autenticación
+│   │   ├── clients.js           # Rutas de clientes
+│   │   ├── cars.js              # Rutas de autos
+│   │   ├── rentals.js           # Rutas de rentas
+│   │   ├── repairs.js           # Rutas de reparaciones
+│   │   ├── returns.js           # Rutas de devoluciones
+│   │   ├── alerts.js            # Rutas de alertas
+│   │   └── reports.js           # Rutas de reportes
+│   ├── services/
+│   │   ├── emailService.js      # Servicio de emails
+│   │   ├── alertService.js      # Servicio de alertas
+│   │   └── reportService.js     # Servicio de reportes
+│   ├── utils/
+│   │   ├── validators.js        # Validadores personalizados
+│   │   └── helpers.js           # Funciones auxiliares
+│   └── app.js                   # Aplicación principal
+├── .env                         # Variables de entorno
+├── package.json
+└── server.js                    # Servidor principal
+
+================================================================================
+2. IMPLEMENTACIÓN DE BASE DE DATOS
+================================================================================
+
+2.1 CONFIGURACIÓN DE CONEXIÓN (config/database.js)
+--------------------------------------------------
+
+const { MongoClient } = require('mongodb');
+
+class Database {
+  constructor() {
+    this.client = null;
+    this.db = null;
+  }
+
+  async connect() {
+    try {
+      this.client = new MongoClient(process.env.MONGODB_URI);
+      await this.client.connect();
+      this.db = this.client.db('car_rental_system');
+      console.log('Conectado a MongoDB');
+      
+      // Crear índices
+      await this.createIndexes();
+    } catch (error) {
+      console.error('Error conectando a MongoDB:', error);
+      process.exit(1);
+    }
+  }
+
+  async createIndexes() {
+    // Índices para users
+    await this.db.collection('users').createIndex({ username: 1 }, { unique: true });
+    await this.db.collection('users').createIndex({ role: 1 });
+
+    // Índices para clients
+    await this.db.collection('clients').createIndex({ email: 1 }, { unique: true });
+    await this.db.collection('clients').createIndex({ licencia: 1 }, { unique: true });
+
+    // Índices para cars
+    await this.db.collection('cars').createIndex({ placas: 1 }, { unique: true });
+    await this.db.collection('cars').createIndex({ numeroSerie: 1 }, { unique: true });
+    await this.db.collection('cars').createIndex({ estado: 1 });
+
+    // Más índices según database-structure.txt...
+  }
+
+  getDb() {
+    return this.db;
+  }
+}
+
+module.exports = new Database();
+
+2.2 SCRIPT DE INICIALIZACIÓN (scripts/init-database.js)
+-------------------------------------------------------
+
+const bcrypt = require('bcryptjs');
+const database = require('../src/config/database');
+
+async function initializeDatabase() {
+  await database.connect();
+  const db = database.getDb();
+
+  // Crear usuario administrador
+  const adminPassword = await bcrypt.hash('admin123', 10);
+  
+  await db.collection('users').insertOne({
+    username: 'admin',
+    password: adminPassword,
+    role: 'dueno',
+    nombre: 'Administrador',
+    email: 'admin@empresa.com',
+    fechaCreacion: new Date(),
+    estado: 'activo'
+  });
+
+  // Crear usuarios de prueba
+  const empleadoPassword = await bcrypt.hash('123456', 10);
+  
+  await db.collection('users').insertMany([
+    {
+      username: 'empleado1',
+      password: empleadoPassword,
+      role: 'empleado',
+      nombre: 'Juan Empleado',
+      email: 'empleado@empresa.com',
+      fechaCreacion: new Date(),
+      estado: 'activo'
+    },
+    {
+      username: 'encargado1',
+      password: empleadoPassword,
+      role: 'encargado',
+      nombre: 'María Encargada',
+      email: 'encargado@empresa.com',
+      fechaCreacion: new Date(),
+      estado: 'activo'
+    }
+  ]);
+
+  console.log('Base de datos inicializada correctamente');
+}
+
+initializeDatabase().catch(console.error);
+
+================================================================================
+3. BACKEND - APIs Y FUNCIONES
+================================================================================
+
+3.1 CONTROLADOR DE AUTENTICACIÓN (controllers/authController.js)
+---------------------------------------------------------------
+
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const database = require('../config/database');
+
+class AuthController {
+  async login(req, res) {
+    try {
+      const { username, password, role } = req.body;
+      const db = database.getDb();
+
+      // Buscar usuario
+      const user = await db.collection('users').findOne({
+        username,
+        role,
+        estado: 'activo'
+      });
+
+      if (!user) {
+        return res.status(401).json({ error: 'Credenciales inválidas' });
+      }
+
+      // Verificar contraseña
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: 'Credenciales inválidas' });
+      }
+
+      // Generar token JWT
+      const token = jwt.sign(
+        { 
+          userId: user._id, 
+          username: user.username, 
+          role: user.role 
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: '8h' }
+      );
+
+      res.json({
+        token,
+        user: {
+          id: user._id,
+          username: user.username,
+          role: user.role,
+          nombre: user.nombre
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Error interno del servidor' });
+    }
+  }
+
+  async register(req, res) {
+    try {
+      const { username, password, role, nombre, email } = req.body;
+      const db = database.getDb();
+
+      // Verificar si el usuario ya existe
+      const existingUser = await db.collection('users').findOne({ username });
+      if (existingUser) {
+        return res.status(400).json({ error: 'El usuario ya existe' });
+      }
+
+      // Hashear contraseña
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Crear usuario
+      const result = await db.collection('users').insertOne({
+        username,
+        password: hashedPassword,
+        role,
+        nombre,
+        email,
+        fechaCreacion: new Date(),
+        estado: 'activo'
+      });
+
+      res.status(201).json({ 
+        message: 'Usuario creado exitosamente',
+        userId: result.insertedId 
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Error interno del servidor' });
+    }
+  }
+}
+
+module.exports = new AuthController();
+
+3.2 CONTROLADOR DE CLIENTES (controllers/clientController.js)
+------------------------------------------------------------
+
+const { ObjectId } = require('mongodb');
+const database = require('../config/database');
+
+class ClientController {
+  async getAll(req, res) {
+    try {
+      const db = database.getDb();
+      const clients = await db.collection('clients')
+        .find({ estado: 'activo' })
+        .sort({ fechaRegistro: -1 })
+        .toArray();
+      
+      res.json(clients);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al obtener clientes' });
+    }
+  }
+
+  async getById(req, res) {
+    try {
+      const { id } = req.params;
+      const db = database.getDb();
+      
+      const client = await db.collection('clients').findOne({
+        _id: new ObjectId(id),
+        estado: 'activo'
+      });
+
+      if (!client) {
+        return res.status(404).json({ error: 'Cliente no encontrado' });
+      }
+
+      res.json(client);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al obtener cliente' });
+    }
+  }
+
+  async create(req, res) {
+    try {
+      const clientData = req.body;
+      const db = database.getDb();
+
+      // Verificar email único
+      const existingEmail = await db.collection('clients').findOne({
+        email: clientData.email
+      });
+      if (existingEmail) {
+        return res.status(400).json({ error: 'El email ya está registrado' });
+      }
+
+      // Verificar licencia única
+      const existingLicense = await db.collection('clients').findOne({
+        licencia: clientData.licencia
+      });
+      if (existingLicense) {
+        return res.status(400).json({ error: 'La licencia ya está registrada' });
+      }
+
+      const result = await db.collection('clients').insertOne({
+        ...clientData,
+        fechaRegistro: new Date(),
+        estado: 'activo'
+      });
+
+      res.status(201).json({
+        message: 'Cliente creado exitosamente',
+        clientId: result.insertedId
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Error al crear cliente' });
+    }
+  }
+
+  async update(req, res) {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      const db = database.getDb();
+
+      const result = await db.collection('clients').updateOne(
+        { _id: new ObjectId(id) },
+        { $set: updateData }
+      );
+
+      if (result.matchedCount === 0) {
+        return res.status(404).json({ error: 'Cliente no encontrado' });
+      }
+
+      res.json({ message: 'Cliente actualizado exitosamente' });
+    } catch (error) {
+      res.status(500).json({ error: 'Error al actualizar cliente' });
+    }
+  }
+
+  async delete(req, res) {
+    try {
+      const { id } = req.params;
+      const db = database.getDb();
+
+      // Soft delete - cambiar estado a inactivo
+      const result = await db.collection('clients').updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { estado: 'inactivo' } }
+      );
+
+      if (result.matchedCount === 0) {
+        return res.status(404).json({ error: 'Cliente no encontrado' });
+      }
+
+      res.json({ message: 'Cliente eliminado exitosamente' });
+    } catch (error) {
+      res.status(500).json({ error: 'Error al eliminar cliente' });
+    }
+  }
+
+  async search(req, res) {
+    try {
+      const { q } = req.query;
+      const db = database.getDb();
+
+      const clients = await db.collection('clients').find({
+        estado: 'activo',
+        $or: [
+          { nombre: { $regex: q, $options: 'i' } },
+          { apellido: { $regex: q, $options: 'i' } },
+          { email: { $regex: q, $options: 'i' } },
+          { licencia: { $regex: q, $options: 'i' } }
+        ]
+      }).toArray();
+
+      res.json(clients);
+    } catch (error) {
+      res.status(500).json({ error: 'Error en la búsqueda' });
+    }
+  }
+}
+
+module.exports = new ClientController();
+
+3.3 CONTROLADOR DE AUTOS (controllers/carController.js)
+------------------------------------------------------
+
+const { ObjectId } = require('mongodb');
+const database = require('../config/database');
+
+class CarController {
+  async getAll(req, res) {
+    try {
+      const db = database.getDb();
+      const cars = await db.collection('cars')
+        .find({})
+        .sort({ fechaRegistro: -1 })
+        .toArray();
+      
+      res.json(cars);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al obtener autos' });
+    }
+  }
+
+  async getAvailable(req, res) {
+    try {
+      const db = database.getDb();
+      const cars = await db.collection('cars')
+        .find({ estado: 'disponible' })
+        .sort({ precioPorDia: 1 })
+        .toArray();
+      
+      res.json(cars);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al obtener autos disponibles' });
+    }
+  }
+
+  async searchAvailable(req, res) {
+    try {
+      const { 
+        categoria, 
+        precioMin, 
+        precioMax, 
+        combustible, 
+        transmision, 
+        año 
+      } = req.query;
+      
+      const db = database.getDb();
+      const query = { estado: 'disponible' };
+
+      // Aplicar filtros
+      if (categoria && categoria !== 'all') {
+        query.categoria = categoria;
+      }
+      if (combustible && combustible !== 'all') {
+        query.combustible = combustible;
+      }
+      if (transmision && transmision !== 'all') {
+        query.transmision = transmision;
+      }
+      if (año && año !== 'all') {
+        query.año = parseInt(año);
+      }
+      if (precioMin) {
+        query.precioPorDia = { ...query.precioPorDia, $gte: parseFloat(precioMin) };
+      }
+      if (precioMax) {
+        query.precioPorDia = { ...query.precioPorDia, $lte: parseFloat(precioMax) };
+      }
+
+      const cars = await db.collection('cars')
+        .find(query)
+        .sort({ precioPorDia: 1 })
+        .toArray();
+
+      res.json(cars);
+    } catch (error) {
+      res.status(500).json({ error: 'Error en la búsqueda de autos' });
+    }
+  }
+
+  async create(req, res) {
+    try {
+      const carData = req.body;
+      const db = database.getDb();
+
+      // Verificar placas únicas
+      const existingPlates = await db.collection('cars').findOne({
+        placas: carData.placas
+      });
+      if (existingPlates) {
+        return res.status(400).json({ error: 'Las placas ya están registradas' });
+      }
+
+      // Verificar número de serie único
+      const existingSerial = await db.collection('cars').findOne({
+        numeroSerie: carData.numeroSerie
+      });
+      if (existingSerial) {
+        return res.status(400).json({ error: 'El número de serie ya está registrado' });
+      }
+
+      const result = await db.collection('cars').insertOne({
+        ...carData,
+        fechaRegistro: new Date()
+      });
+
+      res.status(201).json({
+        message: 'Auto creado exitosamente',
+        carId: result.insertedId
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Error al crear auto' });
+    }
+  }
+
+  async update(req, res) {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      const db = database.getDb();
+
+      const result = await db.collection('cars').updateOne(
+        { _id: new ObjectId(id) },
+        { $set: updateData }
+      );
+
+      if (result.matchedCount === 0) {
+        return res.status(404).json({ error: 'Auto no encontrado' });
+      }
+
+      res.json({ message: 'Auto actualizado exitosamente' });
+    } catch (error) {
+      res.status(500).json({ error: 'Error al actualizar auto' });
+    }
+  }
+
+  async delete(req, res) {
+    try {
+      const { id } = req.params;
+      const db = database.getDb();
+
+      // Verificar que no tenga rentas activas
+      const activeRental = await db.collection('rentals').findOne({
+        autoId: new ObjectId(id),
+        estado: 'activa'
+      });
+
+      if (activeRental) {
+        return res.status(400).json({ 
+          error: 'No se puede eliminar un auto con rentas activas' 
+        });
+      }
+
+      const result = await db.collection('cars').deleteOne({
+        _id: new ObjectId(id)
+      });
+
+      if (result.deletedCount === 0) {
+        return res.status(404).json({ error: 'Auto no encontrado' });
+      }
+
+      res.json({ message: 'Auto eliminado exitosamente' });
+    } catch (error) {
+      res.status(500).json({ error: 'Error al eliminar auto' });
+    }
+  }
+}
+
+module.exports = new CarController();
+
+3.4 CONTROLADOR DE RENTAS (controllers/rentalController.js)
+----------------------------------------------------------
+
+const { ObjectId } = require('mongodb');
+const database = require('../config/database');
+
+class RentalController {
+  async getAll(req, res) {
+    try {
+      const db = database.getDb();
+      const rentals = await db.collection('rentals').aggregate([
+        {
+          $lookup: {
+            from: 'clients',
+            localField: 'clienteId',
+            foreignField: '_id',
+            as: 'cliente'
+          }
+        },
+        {
+          $lookup: {
+            from: 'cars',
+            localField: 'autoId',
+            foreignField: '_id',
+            as: 'auto'
+          }
+        },
+        {
+          $addFields: {
+            clienteNombre: { 
+              $concat: [
+                { $arrayElemAt: ['$cliente.nombre', 0] },
+                ' ',
+                { $arrayElemAt: ['$cliente.apellido', 0] }
+              ]
+            },
+            autoInfo: {
+              $concat: [
+                { $arrayElemAt: ['$auto.marca', 0] },
+                ' ',
+                { $arrayElemAt: ['$auto.modelo', 0] },
+                ' ',
+                { $toString: { $arrayElemAt: ['$auto.año', 0] } },
+                ' - ',
+                { $arrayElemAt: ['$auto.placas', 0] }
+              ]
+            }
+          }
+        },
+        { $sort: { fechaRegistro: -1 } }
+      ]).toArray();
+
+      res.json(rentals);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al obtener rentas' });
+    }
+  }
+
+  async create(req, res) {
+    try {
+      const rentalData = req.body;
+      const db = database.getDb();
+
+      // Iniciar transacción
+      const session = db.client.startSession();
+      
+      try {
+        await session.withTransaction(async () => {
+          // Verificar que el auto esté disponible
+          const car = await db.collection('cars').findOne({
+            _id: new ObjectId(rentalData.autoId),
+            estado: 'disponible'
+          }, { session });
+
+          if (!car) {
+            throw new Error('El auto no está disponible');
+          }
+
+          // Calcular días y monto total
+          const fechaInicio = new Date(rentalData.fechaInicio);
+          const fechaFin = new Date(rentalData.fechaFin);
+          const diasRentados = Math.ceil((fechaFin - fechaInicio) / (1000 * 60 * 60 * 24));
+          const montoTotal = diasRentados * rentalData.precioPorDia;
+
+          // Crear renta
+          await db.collection('rentals').insertOne({
+            ...rentalData,
+            clienteId: new ObjectId(rentalData.clienteId),
+            autoId: new ObjectId(rentalData.autoId),
+            diasRentados,
+            montoTotal,
+            fechaRegistro: new Date()
+          }, { session });
+
+          // Actualizar estado del auto
+          await db.collection('cars').updateOne(
+            { _id: new ObjectId(rentalData.autoId) },
+            { $set: { estado: 'rentado' } },
+            { session }
+          );
+        });
+
+        res.status(201).json({ message: 'Renta creada exitosamente' });
+      } finally {
+        await session.endSession();
+      }
+    } catch (error) {
+      res.status(500).json({ error: error.message || 'Error al crear renta' });
+    }
+  }
+
+  async update(req, res) {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      const db = database.getDb();
+
+      const result = await db.collection('rentals').updateOne(
+        { _id: new ObjectId(id) },
+        { $set: updateData }
+      );
+
+      if (result.matchedCount === 0) {
+        return res.status(404).json({ error: 'Renta no encontrada' });
+      }
+
+      res.json({ message: 'Renta actualizada exitosamente' });
+    } catch (error) {
+      res.status(500).json({ error: 'Error al actualizar renta' });
+    }
+  }
+
+  async getActive(req, res) {
+    try {
+      const db = database.getDb();
+      const activeRentals = await db.collection('rentals').aggregate([
+        { $match: { estado: 'activa' } },
+        {
+          $lookup: {
+            from: 'clients',
+            localField: 'clienteId',
+            foreignField: '_id',
+            as: 'cliente'
+          }
+        },
+        {
+          $lookup: {
+            from: 'cars',
+            localField: 'autoId',
+            foreignField: '_id',
+            as: 'auto'
+          }
+        },
+        {
+          $addFields: {
+            clienteNombre: { 
+              $concat: [
+                { $arrayElemAt: ['$cliente.nombre', 0] },
+                ' ',
+                { $arrayElemAt: ['$cliente.apellido', 0] }
+              ]
+            },
+            autoInfo: {
+              $concat: [
+                { $arrayElemAt: ['$auto.marca', 0] },
+                ' ',
+                { $arrayElemAt: ['$auto.modelo', 0] },
+                ' - ',
+                { $arrayElemAt: ['$auto.placas', 0] }
+              ]
+            },
+            kilometrajeInicial: { $arrayElemAt: ['$auto.kilometraje', 0] }
+          }
+        }
+      ]).toArray();
+
+      res.json(activeRentals);
+    } catch (error) {
+      res.status(500).json({ error: 'Error al obtener rentas activas' });
+    }
+  }
+}
+
+module.exports = new RentalController();
+
+================================================================================
+4. AUTENTICACIÓN Y SEGURIDAD
+================================================================================
+
+4.1 MIDDLEWARE DE AUTENTICACIÓN (middleware/auth.js)
+---------------------------------------------------
+
+const jwt = require('jsonwebtoken');
+
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Token de acceso requerido' });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Token inválido' });
+    }
+    req.user = user;
+    next();
+  });
+};
+
+const authorizeRole = (roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ 
+        error: 'No tienes permisos para acceder a este recurso' 
+      });
+    }
+    next();
+  };
+};
+
+module.exports = { authenticateToken, authorizeRole };
+
+4.2 MIDDLEWARE DE VALIDACIÓN (middleware/validation.js)
+------------------------------------------------------
+
+const joi = require('joi');
+
+const validateClient = (req, res, next) => {
+  const schema = joi.object({
+    nombre: joi.string().min(2).max(50).required(),
+    apellido: joi.string().min(2).max(50).required(),
+    email: joi.string().email().required(),
+    telefono: joi.string().pattern(/^[0-9-+\s()]+$/).required(),
+    direccion: joi.string().min(10).max(200).required(),
+    licencia: joi.string().min(5).max(20).required()
+  });
+
+  const { error } = schema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ 
+      error: 'Datos inválidos', 
+      details: error.details[0].message 
+    });
+  }
+  next();
+};
+
+const validateCar = (req, res, next) => {
+  const schema = joi.object({
+    marca: joi.string().min(2).max(30).required(),
+    modelo: joi.string().min(2).max(30).required(),
+    año: joi.number().integer().min(2000).max(new Date().getFullYear() + 1).required(),
+    color: joi.string().min(3).max(20).required(),
+    placas: joi.string().pattern(/^[A-Z0-9-]+$/).required(),
+    numeroSerie: joi.string().min(10).max(30).required(),
+    precioPorDia: joi.number().positive().required(),
+    kilometraje: joi.number().integer().min(0).required(),
+    combustible: joi.string().valid('gasolina', 'diesel', 'electrico', 'hibrido').required(),
+    transmision: joi.string().valid('manual', 'automatica').required(),
+    categoria: joi.string().valid('economico', 'compacto', 'intermedio', 'lujo', 'suv').required()
+  });
+
+  const { error } = schema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ 
+      error: 'Datos inválidos', 
+      details: error.details[0].message 
+    });
+  }
+  next();
+};
+
+const validateRental = (req, res, next) => {
+  const schema = joi.object({
+    clienteId: joi.string().pattern(/^[0-9a-fA-F]{24}$/).required(),
+    autoId: joi.string().pattern(/^[0-9a-fA-F]{24}$/).required(),
+    fechaInicio: joi.date().iso().required(),
+    fechaFin: joi.date().iso().greater(joi.ref('fechaInicio')).required(),
+    precioPorDia: joi.number().positive().required(),
+    observaciones: joi.string().max(500).optional()
+  });
+
+  const { error } = schema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ 
+      error: 'Datos inválidos', 
+      details: error.details[0].message 
+    });
+  }
+  next();
+};
+
+module.exports = { validateClient, validateCar, validateRental };
+
+================================================================================
+5. LÓGICA DE NEGOCIO
+================================================================================
+
+5.1 SERVICIO DE ALERTAS (services/alertService.js)
+--------------------------------------------------
+
+const database = require('../config/database');
+const { ObjectId } = require('mongodb');
+
+class AlertService {
+  async createVehicleAlert(autoId, mensaje, prioridad = 'media') {
+    try {
+      const db = database.getDb();
+      
+      await db.collection('alerts').insertOne({
+        tipo: 'vehiculo_mal_estado',
+        autoId: new ObjectId(autoId),
+        mensaje,
+        estado: 'activa',
+        prioridad,
+        fechaCreacion: new Date()
+      });
+    } catch (error) {
+      console.error('Error creando alerta:', error);
+    }
+  }
+
+  async createOverdueRentalAlert(rentalId, clienteNombre, autoInfo) {
+    try {
+      const db = database.getDb();
+      
+      await db.collection('alerts').insertOne({
+        tipo: 'renta_vencida',
+        rentalId: new ObjectId(rentalId),
+        mensaje: `Renta vencida: ${clienteNombre} - ${autoInfo}`,
+        estado: 'activa',
+        prioridad: 'alta',
+        fechaCreacion: new Date()
+      });
+    } catch (error) {
+      console.error('Error creando alerta de renta vencida:', error);
+    }
+  }
+
+  async checkOverdueRentals() {
+    try {
+      const db = database.getDb();
+      const today = new Date();
+      
+      const overdueRentals = await db.collection('rentals').aggregate([
+        {
+          $match: {
+            estado: 'activa',
+            fechaFin: { $lt: today }
+          }
+        },
+        {
+          $lookup: {
+            from: 'clients',
+            localField: 'clienteId',
+            foreignField: '_id',
+            as: 'cliente'
+          }
+        },
+        {
+          $lookup: {
+            from: 'cars',
+            localField: 'autoId',
+            foreignField: '_id',
+            as: 'auto'
+          }
+        }
+      ]).toArray();
+
+      for (const rental of overdueRentals) {
+        const clienteNombre = `${rental.cliente[0].nombre} ${rental.cliente[0].apellido}`;
+        const autoInfo = `${rental.auto[0].marca} ${rental.auto[0].modelo} - ${rental.auto[0].placas}`;
+        
+        // Verificar si ya existe una alerta para esta renta
+        const existingAlert = await db.collection('alerts').findOne({
+          tipo: 'renta_vencida',
+          rentalId: rental._id,
+          estado: 'activa'
+        });
+
+        if (!existingAlert) {
+          await this.createOverdueRentalAlert(rental._id, clienteNombre, autoInfo);
+        }
+      }
+    } catch (error) {
+      console.error('Error verificando rentas vencidas:', error);
+    }
+  }
+
+  async resolveAlert(alertId) {
+    try {
+      const db = database.getDb();
+      
+      await db.collection('alerts').updateOne(
+        { _id: new ObjectId(alertId) },
+        {
+          $set: {
+            estado: 'resuelta',
+            fechaResolucion: new Date()
+          }
+        }
+      );
+    } catch (error) {
+      console.error('Error resolviendo alerta:', error);
+    }
+  }
+}
+
+module.exports = new AlertService();
+
+5.2 SERVICIO DE REPORTES (services/reportService.js)
+----------------------------------------------------
+
+const database = require('../config/database');
+
+class ReportService {
+  async getMostRentedCars(months = 2) {
+    try {
+      const db = database.getDb();
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - months);
+
+      const result = await db.collection('rentals').aggregate([
+        {
+          $match: {
+            fechaInicio: { $gte: startDate },
+            estado: { $in: ['completada', 'activa'] }
+          }
+        },
+        {
+          $group: {
+            _id: '$autoId',
+            totalRentas: { $sum: 1 },
+            ingresoTotal: { $sum: '$montoTotal' },
+            diasRentados: { $sum: '$diasRentados' }
+          }
+        },
+        {
+          $lookup: {
+            from: 'cars',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'auto'
+          }
+        },
+        {
+          $addFields: {
+            autoInfo: {
+              $concat: [
+                { $arrayElemAt: ['$auto.marca', 0] },
+                ' ',
+                { $arrayElemAt: ['$auto.modelo', 0] },
+                ' ',
+                { $toString: { $arrayElemAt: ['$auto.año', 0] } },
+                ' - ',
+                { $arrayElemAt: ['$auto.placas', 0] }
+              ]
+            },
+            marca: { $arrayElemAt: ['$auto.marca', 0] },
+            modelo: { $arrayElemAt: ['$auto.modelo', 0] },
+            categoria: { $arrayElemAt: ['$auto.categoria', 0] },
+            ingresoPromedioPorDia: { $divide: ['$ingresoTotal', '$diasRentados'] }
+          }
+        },
+        {
+          $sort: { totalRentas: -1 }
+        }
+      ]).toArray();
+
+      return result;
+    } catch (error) {
+      console.error('Error generando reporte de autos más rentados:', error);
+      throw error;
+    }
+  }
+
+  async getRepairsByDateRange(startDate, endDate, minAmount = 0) {
+    try {
+      const db = database.getDb();
+      
+      const query = {
+        fechaInicio: {
+          $gte: new Date(startDate),
+          $lte: new Date(endDate)
+        }
+      };
+
+      if (minAmount > 0) {
+        query.costo = { $gte: minAmount };
+      }
+
+      const repairs = await db.collection('repairs').aggregate([
+        { $match: query },
+        {
+          $lookup: {
+            from: 'cars',
+            localField: 'autoId',
+            foreignField: '_id',
+            as: 'auto'
+          }
+        },
+        {
+          $addFields: {
+            autoInfo: {
+              $concat: [
+                { $arrayElemAt: ['$auto.marca', 0] },
+                ' ',
+                { $arrayElemAt: ['$auto.modelo', 0] },
+                ' ',
+                { $toString: { $arrayElemAt: ['$auto.año', 0] } },
+                ' - ',
+                { $arrayElemAt: ['$auto.placas', 0] }
+              ]
+            }
+          }
+        },
+        { $sort: { fechaInicio: -1 } }
+      ]).toArray();
+
+      return repairs;
+    } catch (error) {
+      console.error('Error generando reporte de reparaciones:', error);
+      throw error;
+    }
+  }
+
+  async getFinancialReport(año, periodo = 12) {
+    try {
+      const db = database.getDb();
+      const startDate = new Date(`${año}-01-01`);
+      const endDate = new Date(`${año}-12-31`);
+
+      // Obtener ingresos por rentas por mes
+      const ingresos = await db.collection('rentals').aggregate([
+        {
+          $match: {
+            fechaInicio: { $gte: startDate, $lte: endDate },
+            estado: { $in: ['completada', 'activa'] }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              año: { $year: '$fechaInicio' },
+              mes: { $month: '$fechaInicio' }
+            },
+            ingresosPorRentas: { $sum: '$montoTotal' }
+          }
+        }
+      ]).toArray();
+
+      // Obtener gastos por reparaciones por mes
+      const gastos = await db.collection('repairs').aggregate([
+        {
+          $match: {
+            fechaInicio: { $gte: startDate, $lte: endDate },
+            estado: 'completada'
+          }
+        },
+        {
+          $group: {
+            _id: {
+              año: { $year: '$fechaInicio' },
+              mes: { $month: '$fechaInicio' }
+            },
+            gastosReparaciones: { $sum: '$costo' }
+          }
+        }
+      ]).toArray();
+
+      // Combinar datos y calcular utilidades
+      const financialData = [];
+      for (let mes = 1; mes <= 12; mes++) {
+        const ingreso = ingresos.find(i => i._id.mes === mes) || { ingresosPorRentas: 0 };
+        const gasto = gastos.find(g => g._id.mes === mes) || { gastosReparaciones: 0 };
+        
+        const ingresosPorRentas = ingreso.ingresosPorRentas;
+        const gastosReparaciones = gasto.gastosReparaciones;
+        const gastosMantenimiento = gastosReparaciones * 0.2; // Estimado
+        const gastosOperativos = ingresosPorRentas * 0.25; // Estimado
+        const utilidadNeta = ingresosPorRentas - gastosReparaciones - gastosMantenimiento - gastosOperativos;
+
+        financialData.push({
+          mes: `${año}-${mes.toString().padStart(2, '0')}`,
+          ingresosPorRentas,
+          gastosReparaciones,
+          gastosMantenimiento,
+          gastosOperativos,
+          utilidadNeta
+        });
+      }
+
+      return financialData;
+    } catch (error) {
+      console.error('Error generando reporte financiero:', error);
+      throw error;
+    }
+  }
+}
+
+module.exports = new ReportService();
+
+================================================================================
+6. VALIDACIONES
+================================================================================
+
+6.1 VALIDADORES PERSONALIZADOS (utils/validators.js)
+----------------------------------------------------
+
+const isValidPlate = (plate) => {
+  // Formato: ABC-123 o ABC123
+  const plateRegex = /^[A-Z]{3}-?[0-9]{3}$/;
+  return plateRegex.test(plate);
+};
+
+const isValidLicense = (license) => {
+  // Formato: LIC123456 (3 letras + 6 números)
+  const licenseRegex = /^[A-Z]{3}[0-9]{6}$/;
+  return licenseRegex.test(license);
+};
+
+const isValidVIN = (vin) => {
+  // VIN debe tener 17 caracteres alfanuméricos
+  const vinRegex = /^[A-HJ-NPR-Z0-9]{17}$/;
+  return vinRegex.test(vin);
+};
+
+const isValidEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+const isValidPhone = (phone) => {
+  // Formato: 555-0123, (555) 012-3456, +52 555 012 3456
+  const phoneRegex = /^[\+]?[0-9\s\-$$$$]{10,15}$/;
+  return phoneRegex.test(phone);
+};
+
+const isValidDateRange = (startDate, endDate) => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const today = new Date();
+  
+  return start >= today && end > start;
+};
+
+module.exports = {
+  isValidPlate,
+  isValidLicense,
+  isValidVIN,
+  isValidEmail,
+  isValidPhone,
+  isValidDateRange
+};
+
+6.2 MIDDLEWARE DE VALIDACIÓN AVANZADA
+-------------------------------------
+
+const { body, validationResult } = require('express-validator');
+const { isValidPlate, isValidLicense, isValidVIN } = require('../utils/validators');
+
+const validateClientAdvanced = [
+  body('nombre')
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
+    .withMessage('Nombre debe contener solo letras'),
+  
+  body('apellido')
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
+    .withMessage('Apellido debe contener solo letras'),
+  
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Email inválido'),
+  
+  body('telefono')
+    .matches(/^[\+]?[0-9\s\-$$$$]{10,15}$/)
+    .withMessage('Teléfono inválido'),
+  
+  body('licencia')
+    .custom(value => {
+      if (!isValidLicense(value)) {
+        throw new Error('Formato de licencia inválido');
+      }
+      return true;
+    }),
+  
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        error: 'Datos inválidos',
+        details: errors.array()
+      });
+    }
+    next();
+  }
+];
+
+const validateCarAdvanced = [
+  body('placas')
+    .custom(value => {
+      if (!isValidPlate(value)) {
+        throw new Error('Formato de placas inválido');
+      }
+      return true;
+    }),
+  
+  body('numeroSerie')
+    .custom(value => {
+      if (!isValidVIN(value)) {
+        throw new Error('Número de serie inválido');
+      }
+      return true;
+    }),
+  
+  body('año')
+    .isInt({ min: 2000, max: new Date().getFullYear() + 1 })
+    .withMessage('Año inválido'),
+  
+  body('precioPorDia')
+    .isFloat({ min: 100, max: 10000 })
+    .withMessage('Precio por día debe estar entre $100 y $10,000'),
+  
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        error: 'Datos inválidos',
+        details: errors.array()
+      });
+    }
+    next();
+  }
+];
+
+module.exports = { validateClientAdvanced, validateCarAdvanced };
+
+================================================================================
+7. TESTING
+================================================================================
+
+7.1 CONFIGURACIÓN DE TESTING
+-----------------------------
+
+Dependencias de testing:
+npm install -D jest supertest mongodb-memory-server
+
+7.2 TESTS DE EJEMPLO (tests/auth.test.js)
+-----------------------------------------
+
+const request = require('supertest');
+const { MongoMemoryServer } = require('mongodb-memory-server');
+const app = require('../src/app');
+const database = require('../src/config/database');
+
+describe('Authentication', () => {
+  let mongoServer;
+
+  beforeAll(async () => {
+    mongoServer = await MongoMemoryServer.create();
+    process.env.MONGODB_URI = mongoServer.getUri();
+    await database.connect();
+  });
+
+  afterAll(async () => {
+    await database.client.close();
+    await mongoServer.stop();
+  });
+
+  describe('POST /api/auth/login', () => {
+    test('Should login with valid credentials', async () => {
+      // Crear usuario de prueba
+      const db = database.getDb();
+      await db.collection('users').insertOne({
+        username: 'testuser',
+        password: '$2b$10$hashedpassword',
+        role: 'empleado',
+        nombre: 'Test User',
+        estado: 'activo'
+      });
+
+      const response = await request(app)
+        .post('/api/auth/login')
+        .send({
+          username: 'testuser',
+          password: 'password123',
+          role: 'empleado'
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('token');
+      expect(response.body.user.username).toBe('testuser');
+    });
+
+    test('Should reject invalid credentials', async () => {
+      const response = await request(app)
+        .post('/api/auth/login')
+        .send({
+          username: 'invalid',
+          password: 'invalid',
+          role: 'empleado'
+        });
+
+      expect(response.status).toBe(401);
+      expect(response.body).toHaveProperty('error');
+    });
+  });
+});
+
+7.3 TESTS DE CLIENTES (tests/clients.test.js)
+---------------------------------------------
+
+const request = require('supertest');
+const app = require('../src/app');
+
+describe('Clients API', () => {
+  let authToken;
+
+  beforeAll(async () => {
+    // Login para obtener token
+    const loginResponse = await request(app)
+      .post('/api/auth/login')
+      .send({
+        username: 'testuser',
+        password: 'password123',
+        role: 'empleado'
+      });
+    
+    authToken = loginResponse.body.token;
+  });
+
+  describe('GET /api/clients', () => {
+    test('Should get all clients', async () => {
+      const response = await request(app)
+        .get('/api/clients')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body)).toBe(true);
+    });
+  });
+
+  describe('POST /api/clients', () => {
+    test('Should create a new client', async () => {
+      const clientData = {
+        nombre: 'Juan',
+        apellido: 'Pérez',
+        email: 'juan@test.com',
+        telefono: '555-0123',
+        direccion: 'Calle Test 123',
+        licencia: 'LIC123456'
+      };
+
+      const response = await request(app)
+        .post('/api/clients')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(clientData);
+
+      expect(response.status).toBe(201);
+      expect(response.body).toHaveProperty('clientId');
+    });
+
+    test('Should reject duplicate email', async () => {
+      const clientData = {
+        nombre: 'María',
+        apellido: 'González',
+        email: 'juan@test.com', // Email duplicado
+        telefono: '555-0456',
+        direccion: 'Calle Test 456',
+        licencia: 'LIC789012'
+      };
+
+      const response = await request(app)
+        .post('/api/clients')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(clientData);
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('email');
+    });
+  });
+});
+
+================================================================================
+8. DEPLOYMENT
+================================================================================
+
+8.1 DOCKERFILE
+---------------
+
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --only=production
+
+COPY . .
+
+EXPOSE 3000
+
+USER node
+
+CMD ["npm", "start"]
+
+8.2 DOCKER-COMPOSE.YML
+----------------------
+
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongo:27017/car_rental_system
+      - JWT_SECRET=your_jwt_secret_here
+    depends_on:
+      - mongo
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:6.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
+
+8.3 VARIABLES DE ENTORNO PRODUCCIÓN
+-----------------------------------
+
+NODE_ENV=production
+PORT=3000
+MONGODB_URI=mongodb://localhost:27017/car_rental_system
+JWT_SECRET=your_super_secret_jwt_key_here
+BCRYPT_ROUNDS=12
+
+# Para MongoDB Atlas
+# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/car_rental_system
+
+# Configuración de CORS
+CORS_ORIGIN=https://yourdomain.com
+
+# Configuración de logs
+LOG_LEVEL=info
+
+8.4 SCRIPT DE DEPLOYMENT (scripts/deploy.sh)
+--------------------------------------------
+
+#!/bin/bash
+
+echo "Iniciando deployment..."
+
+# Construir imagen Docker
+docker build -t car-rental-api .
+
+# Detener contenedores existentes
+docker-compose down
+
+# Iniciar servicios
+docker-compose up -d
+
+# Verificar que los servicios estén corriendo
+sleep 10
+docker-compose ps
+
+# Ejecutar migraciones/inicialización si es necesario
+docker-compose exec app npm run init-db
+
+echo "Deployment completado!"
+
+================================================================================
+9. MANTENIMIENTO
+================================================================================
+
+9.1 SCRIPT DE BACKUP (scripts/backup.js)
+----------------------------------------
+
+const { exec } = require('child_process');
+const path = require('path');
+
+const MONGODB_URI = process.env.MONGODB_URI;
+const BACKUP_DIR = path.join(__dirname, '../backups');
+const DATE = new Date().toISOString().split('T')[0];
+
+const backupCommand = `mongodump --uri="${MONGODB_URI}" --out="${BACKUP_DIR}/${DATE}"`;
+
+exec(backupCommand, (error, stdout, stderr) => {
+  if (error) {
+    console.error('Error en backup:', error);
+    return;
+  }
+  
+  console.log('Backup completado:', stdout);
+  
+  // Comprimir backup
+  const compressCommand = `tar -czf "${BACKUP_DIR}/${DATE}.tar.gz" -C "${BACKUP_DIR}" "${DATE}"`;
+  
+  exec(compressCommand, (error) => {
+    if (error) {
+      console.error('Error comprimiendo backup:', error);
+      return;
+    }
+    
+    console.log('Backup comprimido exitosamente');
+    
+    // Limpiar directorio sin comprimir
+    exec(`rm -rf "${BACKUP_DIR}/${DATE}"`, () => {
+      console.log('Limpieza completada');
+    });
+  });
+});
+
+9.2 CRON JOBS SUGERIDOS
+-----------------------
+
+# Backup diario a las 2:00 AM
+0 2 * * * /usr/bin/node /path/to/app/scripts/backup.js
+
+# Verificar rentas vencidas cada hora
+0 * * * * /usr/bin/node /path/to/app/scripts/check-overdue-rentals.js
+
+# Limpiar logs antiguos semanalmente
+0 0 * * 0 find /path/to/app/logs -name "*.log" -mtime +30 -delete
+
+9.3 MONITOREO Y LOGS
+--------------------
+
+Configurar logging con Winston:
+
+const winston = require('winston');
+
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'logs/combined.log' }),
+    new winston.transports.Console({
+      format: winston.format.simple()
+    })
+  ]
+});
+
+module.exports = logger;
+
+================================================================================
+CHECKLIST DE IMPLEMENTACIÓN
+================================================================================
+
+CONFIGURACIÓN INICIAL:
+□ Instalar dependencias
+□ Configurar variables de entorno
+□ Configurar estructura de carpetas
+□ Configurar conexión a MongoDB
+
+BASE DE DATOS:
+□ Crear colecciones
+□ Crear índices
+□ Insertar usuarios de prueba
+□ Verificar conexión
+
+BACKEND - FUNCIONALIDADES BÁSICAS:
+□ Implementar autenticación
+□ Implementar CRUD de clientes
+□ Implementar CRUD de autos
+□ Implementar CRUD de rentas
+□ Implementar middleware de seguridad
+
+BACKEND - FUNCIONALIDADES AVANZADAS:
+□ Implementar sistema de reparaciones
+□ Implementar sistema de devoluciones
+□ Implementar sistema de alertas
+□ Implementar reportes
+
+VALIDACIONES Y SEGURIDAD:
+□ Implementar validaciones de datos
+□ Configurar CORS
+□ Implementar rate limiting
+□ Configurar helmet para seguridad
+
+TESTING:
+□ Configurar entorno de testing
+□ Escribir tests unitarios
+□ Escribir tests de integración
+□ Configurar CI/CD
+
+DEPLOYMENT:
+□ Configurar Docker
+□ Configurar variables de producción
+□ Configurar backup automático
+□ Configurar monitoreo
+
+DOCUMENTACIÓN:
+□ Documentar APIs
+□ Crear manual de usuario
+□ Documentar procesos de deployment
+□ Crear guía de troubleshooting
+
+================================================================================
+CONTACTO Y SOPORTE
+================================================================================
+
+Para dudas sobre la implementación:
+- Revisar este documento completo
+- Verificar la estructura de base de datos en database-structure.txt
+- Consultar los ejemplos de código proporcionados
+- Seguir el checklist de implementación paso a paso
+
+¡La estructura está completa y lista para implementar! 🚀
+================================================================================
