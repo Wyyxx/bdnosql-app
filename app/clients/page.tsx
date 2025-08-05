@@ -1,7 +1,5 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -53,57 +51,43 @@ export default function ClientsPage() {
     loadClients()
   }, [])
 
-  // TODO: Implementar carga de clientes desde MongoDB
   const loadClients = async () => {
-    // Aquí irá la lógica para cargar clientes desde MongoDB
-    // Ejemplo: const clientsData = await getClients()
+    try {
+      const res = await fetch("/api/clientes")
+      if (!res.ok) throw new Error("Error al cargar clientes desde la API")
 
-    // Datos simulados
-    const mockClients: Client[] = [
-      {
-        _id: "1",
-        nombre: "Juan",
-        apellido: "Pérez",
-        email: "juan.perez@email.com",
-        telefono: "555-0123",
-        direccion: "Calle Principal 123",
-        licencia: "LIC123456",
-        fechaRegistro: "2024-01-15",
-        estado: "activo",
-      },
-      {
-        _id: "2",
-        nombre: "María",
-        apellido: "González",
-        email: "maria.gonzalez@email.com",
-        telefono: "555-0456",
-        direccion: "Avenida Central 456",
-        licencia: "LIC789012",
-        fechaRegistro: "2024-02-20",
-        estado: "activo",
-      },
-    ]
-    setClients(mockClients)
+      const data = await res.json()
+
+      const formattedClients: Client[] = data.map((client: any) => ({
+        _id: client._id,
+        nombre: client.nombre || "",
+        apellido: client.apellido || "",
+        email: client.correo || "",
+        telefono: client.telefono || "",
+        direccion: client.direccion || "",
+        licencia: client.licencia || "",
+        fechaRegistro: client.fecha_registro || new Date().toISOString(),
+        estado: client.activo ? "activo" : "inactivo",
+      }))
+
+      setClients(formattedClients)
+    } catch (error) {
+      console.error("Error cargando clientes:", error)
+    }
   }
 
-  // TODO: Implementar guardado de cliente en MongoDB
   const handleSaveClient = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (editingClient) {
-      // Actualizar cliente existente
-      // Ejemplo: await updateClient(editingClient._id, formData)
       console.log("Actualizando cliente:", formData)
+      // Implementar update si deseas
     } else {
-      // Crear nuevo cliente
-      // Ejemplo: await createClient(formData)
       console.log("Creando nuevo cliente:", formData)
+      // Implementar POST si deseas
     }
 
-    // Recargar lista de clientes
     await loadClients()
-
-    // Resetear formulario
     setFormData({
       nombre: "",
       apellido: "",
@@ -118,11 +102,10 @@ export default function ClientsPage() {
     setIsDialogOpen(false)
   }
 
-  // TODO: Implementar eliminación de cliente en MongoDB
   const handleDeleteClient = async (clientId: string) => {
     if (confirm("¿Estás seguro de que deseas eliminar este cliente?")) {
-      // Ejemplo: await deleteClient(clientId)
       console.log("Eliminando cliente:", clientId)
+      // Implementar DELETE si deseas
       await loadClients()
     }
   }
@@ -138,7 +121,7 @@ export default function ClientsPage() {
       client.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       client.apellido.toLowerCase().includes(searchTerm.toLowerCase()) ||
       client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      client.licencia.toLowerCase().includes(searchTerm.toLowerCase()),
+      client.licencia.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   return (
@@ -292,15 +275,15 @@ export default function ClientsPage() {
               <TableBody>
                 {filteredClients.map((client) => (
                   <TableRow key={client._id}>
-                    <TableCell className="font-medium">
-                      {client.nombre} {client.apellido}
-                    </TableCell>
+                    <TableCell className="font-medium">{client.nombre} {client.apellido}</TableCell>
                     <TableCell>{client.email}</TableCell>
                     <TableCell>{client.telefono}</TableCell>
                     <TableCell>{client.licencia}</TableCell>
                     <TableCell>{new Date(client.fechaRegistro).toLocaleDateString()}</TableCell>
                     <TableCell>
-                      <Badge variant={client.estado === "activo" ? "default" : "secondary"}>{client.estado}</Badge>
+                      <Badge variant={client.estado === "activo" ? "default" : "secondary"}>
+                        {client.estado}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
