@@ -1,484 +1,397 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { 
+  Wrench, 
+  Plus, 
+  Search, 
+  Edit, 
+  Car,
+  Filter,
+  RefreshCw,
+  DollarSign
+} from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
-import { Textarea } from "@/components/ui/textarea"
-import { Plus, Search, Edit, ArrowLeft, DollarSign } from "lucide-react"
-import Link from "next/link"
 
-interface Repair {
-  _id?: string
-  autoId: string
-  autoInfo: string
-  tipoReparacion: string
+interface Auto {
+  _id: string
+  marca: string
+  modelo: string
+  año: number
+  placas: string
+}
+
+interface Reparacion {
+  _id: string
+  auto_id: string
   descripcion: string
   costo: number
-  fechaInicio: string
-  fechaFinalizacion?: string
-  estado: "pendiente" | "en_proceso" | "completada" | "cancelada"
-  taller?: string
-  tecnico?: string
-  observaciones?: string
-  fechaRegistro: string
+  fecha: string
+  taller: string
+  auto?: Auto // Para mostrar información del auto
 }
 
 export default function RepairsPage() {
-  const [repairs, setRepairs] = useState<Repair[]>([])
-  const [cars, setCars] = useState<any[]>([])
+  const [reparaciones, setReparaciones] = useState<Reparacion[]>([])
+  const [autos, setAutos] = useState<Auto[]>([])
+  const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
-  const [filterStatus, setFilterStatus] = useState<string>("all")
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [editingRepair, setEditingRepair] = useState<Repair | null>(null)
-  const [formData, setFormData] = useState<Repair>({
-    autoId: "",
-    autoInfo: "",
-    tipoReparacion: "",
+  const [filterAuto, setFilterAuto] = useState<string>("all")
+  const [showForm, setShowForm] = useState(false)
+  const [editingReparacion, setEditingReparacion] = useState<Reparacion | null>(null)
+  const [formData, setFormData] = useState({
+    auto_id: "",
     descripcion: "",
-    costo: 0,
-    fechaInicio: new Date().toISOString().split("T")[0],
-    estado: "pendiente",
-    taller: "",
-    tecnico: "",
-    observaciones: "",
-    fechaRegistro: new Date().toISOString().split("T")[0],
+    costo: "",
+    fecha: "",
+    taller: ""
   })
+
+  // Cargar reparaciones y autos
+  const fetchReparaciones = async () => {
+    setLoading(true)
+    try {
+      let url = '/api/reparaciones'
+      const params = new URLSearchParams()
+      
+      if (filterAuto !== "all") {
+        params.append('auto_id', filterAuto)
+      }
+      
+      if (searchTerm) {
+        params.append('search', searchTerm)
+      }
+      
+      if (params.toString()) {
+        url += `?${params.toString()}`
+      }
+
+      const response = await fetch(url)
+      const data = await response.json()
+      
+      if (data.success) {
+        setReparaciones(data.reparaciones)
+      }
+    } catch (error) {
+      console.error('Error cargando reparaciones:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchAutos = async () => {
+    try {
+      const response = await fetch('/api/autos')
+      const data = await response.json()
+      
+      if (data.success) {
+        setAutos(data.autos)
+      }
+    } catch (error) {
+      console.error('Error cargando autos:', error)
+    }
+  }
 
   useEffect(() => {
-    loadRepairs()
-    loadCars()
+    fetchAutos()
   }, [])
 
-  // TODO: Implementar carga de reparaciones desde MongoDB
-  const loadRepairs = async () => {
-    // Aquí irá la lógica para cargar reparaciones desde MongoDB
-    // Ejemplo: const repairsData = await getRepairs()
+  useEffect(() => {
+    fetchReparaciones()
+  }, [searchTerm, filterAuto])
 
-    // Datos simulados
-    const mockRepairs: Repair[] = [
-      {
-        _id: "1",
-        autoId: "1",
-        autoInfo: "Toyota Corolla 2022 - ABC-123",
-        tipoReparacion: "Mantenimiento preventivo",
-        descripcion: "Cambio de aceite y filtros",
-        costo: 1500,
-        fechaInicio: "2024-03-01",
-        fechaFinalizacion: "2024-03-02",
-        estado: "completada",
-        taller: "Taller Central",
-        tecnico: "Carlos Méndez",
-        observaciones: "Servicio completo realizado",
-        fechaRegistro: "2024-02-28",
-      },
-      {
-        _id: "2",
-        autoId: "2",
-        autoInfo: "Honda Civic 2023 - XYZ-789",
-        tipoReparacion: "Reparación mayor",
-        descripcion: "Reparación de transmisión",
-        costo: 8500,
-        fechaInicio: "2024-03-05",
-        estado: "en_proceso",
-        taller: "Taller Especializado",
-        tecnico: "Ana López",
-        fechaRegistro: "2024-03-04",
-      },
-    ]
-    setRepairs(mockRepairs)
+  // Crear nueva reparación
+  const handleCreateReparacion = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    try {
+      const response = await fetch('/api/reparaciones', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setShowForm(false)
+        setFormData({ auto_id: "", descripcion: "", costo: "", fecha: "", taller: "" })
+        fetchReparaciones()
+      } else {
+        alert(data.error || 'Error creando reparación')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Error de conexión')
+    }
   }
 
-  // TODO: Implementar carga de autos desde MongoDB
-  const loadCars = async () => {
-    // Ejemplo: const carsData = await getAllCars()
-    const mockCars = [
-      { _id: "1", marca: "Toyota", modelo: "Corolla", año: 2022, placas: "ABC-123" },
-      { _id: "2", marca: "Honda", modelo: "Civic", año: 2023, placas: "XYZ-789" },
-      { _id: "3", marca: "Nissan", modelo: "Sentra", año: 2023, placas: "DEF-456" },
-    ]
-    setCars(mockCars)
-  }
-
-  // TODO: Implementar guardado de reparación en MongoDB
-  const handleSaveRepair = async (e: React.FormEvent) => {
+  // Actualizar reparación
+  const handleUpdateReparacion = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (editingRepair) {
-      // Actualizar reparación existente
-      // Ejemplo: await updateRepair(editingRepair._id, formData)
-      console.log("Actualizando reparación:", formData)
+    if (!editingReparacion) return
+
+    try {
+      const response = await fetch(`/api/reparaciones/${editingReparacion._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setEditingReparacion(null)
+        setFormData({ auto_id: "", descripcion: "", costo: "", fecha: "", taller: "" })
+        fetchReparaciones()
     } else {
-      // Crear nueva reparación
-      // Ejemplo: await createRepair(formData)
-      // También actualizar estado del auto si es necesario
-      console.log("Creando nueva reparación:", formData)
+        alert(data.error || 'Error actualizando reparación')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Error de conexión')
     }
+  }
 
-    await loadRepairs()
-
-    // Resetear formulario
+  // Abrir formulario de edición
+  const openEditForm = (reparacion: Reparacion) => {
+    setEditingReparacion(reparacion)
     setFormData({
-      autoId: "",
-      autoInfo: "",
-      tipoReparacion: "",
-      descripcion: "",
-      costo: 0,
-      fechaInicio: new Date().toISOString().split("T")[0],
-      estado: "pendiente",
-      taller: "",
-      tecnico: "",
-      observaciones: "",
-      fechaRegistro: new Date().toISOString().split("T")[0],
+      auto_id: reparacion.auto_id,
+      descripcion: reparacion.descripcion,
+      costo: reparacion.costo.toString(),
+      fecha: reparacion.fecha.split('T')[0], // Convertir a formato YYYY-MM-DD
+      taller: reparacion.taller
     })
-    setEditingRepair(null)
-    setIsDialogOpen(false)
   }
 
-  const handleEditRepair = (repair: Repair) => {
-    setEditingRepair(repair)
-    setFormData(repair)
-    setIsDialogOpen(true)
+  // Obtener información del auto
+  const getAutoInfo = (auto_id: string) => {
+    return autos.find(auto => auto._id === auto_id)
   }
-
-  const handleCarChange = (carId: string) => {
-    const car = cars.find((c) => c._id === carId)
-    if (car) {
-      setFormData((prev) => ({
-        ...prev,
-        autoId: carId,
-        autoInfo: `${car.marca} ${car.modelo} ${car.año} - ${car.placas}`,
-      }))
-    }
-  }
-
-  const filteredRepairs = repairs.filter((repair) => {
-    const matchesSearch =
-      repair.autoInfo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      repair.tipoReparacion.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      repair.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (repair.taller && repair.taller.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (repair.tecnico && repair.tecnico.toLowerCase().includes(searchTerm.toLowerCase()))
-
-    const matchesFilter = filterStatus === "all" || repair.estado === filterStatus
-
-    return matchesSearch && matchesFilter
-  })
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "pendiente":
-        return "secondary"
-      case "en_proceso":
-        return "default"
-      case "completada":
-        return "outline"
-      case "cancelada":
-        return "destructive"
-      default:
-        return "default"
-    }
-  }
-
-  const tiposReparacion = [
-    "Mantenimiento preventivo",
-    "Reparación menor",
-    "Reparación mayor",
-    "Cambio de llantas",
-    "Reparación de motor",
-    "Reparación de transmisión",
-    "Sistema eléctrico",
-    "Sistema de frenos",
-    "Aire acondicionado",
-    "Otro",
-  ]
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Volver
-              </Button>
-            </Link>
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Gestión de Reparaciones</h1>
-              <p className="text-gray-600">Registrar reparaciones de vehículos</p>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Gestión de Reparaciones
+              </h1>
+              <p className="text-gray-600">
+                Registra y mantiene el historial de reparaciones de los autos
+              </p>
             </div>
+            <Button onClick={() => setShowForm(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Nueva Reparación
+            </Button>
           </div>
+        </div>
+      </div>
 
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Filtros y búsqueda */}
+        <Card className="mb-6">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Buscar por descripción o taller..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <select
+                  value={filterAuto}
+                  onChange={(e) => setFilterAuto(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-label="Filtrar por auto"
+                >
+                  <option value="all">Todos los autos</option>
+                  {autos.map((auto) => (
+                    <option key={auto._id} value={auto._id}>
+                      {auto.marca} {auto.modelo} ({auto.placas})
+                    </option>
+                  ))}
+                </select>
+                <Button variant="outline" onClick={fetchReparaciones}>
+                  <RefreshCw className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Lista de reparaciones */}
+        <div className="grid gap-4">
+          {loading ? (
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center">Cargando reparaciones...</div>
+              </CardContent>
+            </Card>
+          ) : reparaciones.length === 0 ? (
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center text-gray-500">
+                  No se encontraron reparaciones
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            reparaciones.map((reparacion) => {
+              const autoInfo = getAutoInfo(reparacion.auto_id)
+              return (
+                <Card key={reparacion._id}>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3">
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {reparacion.descripcion}
+                          </h3>
+                          <Badge className="bg-blue-100 text-blue-800">
+                            ${reparacion.costo.toLocaleString()}
+                          </Badge>
+                        </div>
+                        <div className="mt-2 space-y-1 text-sm text-gray-600">
+                          <p><strong>Auto:</strong> {autoInfo ? `${autoInfo.marca} ${autoInfo.modelo} (${autoInfo.placas})` : 'Auto no encontrado'}</p>
+                          <p><strong>Taller:</strong> {reparacion.taller}</p>
+                          <p><strong>Fecha:</strong> {new Date(reparacion.fecha).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
               <Button
-                onClick={() => {
-                  setEditingRepair(null)
-                  setFormData({
-                    autoId: "",
-                    autoInfo: "",
-                    tipoReparacion: "",
-                    descripcion: "",
-                    costo: 0,
-                    fechaInicio: new Date().toISOString().split("T")[0],
-                    estado: "pendiente",
-                    taller: "",
-                    tecnico: "",
-                    observaciones: "",
-                    fechaRegistro: new Date().toISOString().split("T")[0],
-                  })
-                }}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Nueva Reparación
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openEditForm(reparacion)}
+                        >
+                          <Edit className="w-4 h-4" />
               </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })
+          )}
+        </div>
+      </div>
+
+      {/* Modal para crear/editar reparación */}
+      <Dialog open={showForm || editingReparacion !== null} onOpenChange={() => {
+        setShowForm(false)
+        setEditingReparacion(null)
+        setFormData({ auto_id: "", descripcion: "", costo: "", fecha: "", taller: "" })
+      }}>
+        <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle>{editingRepair ? "Editar Reparación" : "Nueva Reparación"}</DialogTitle>
+            <DialogTitle>
+              {editingReparacion ? "Editar Reparación" : "Nueva Reparación"}
+            </DialogTitle>
                 <DialogDescription>
-                  {editingRepair ? "Actualiza los datos de la reparación" : "Registra una nueva reparación de vehículo"}
+              {editingReparacion 
+                ? "Modifica los datos de la reparación seleccionada"
+                : "Completa los datos para registrar una nueva reparación"
+              }
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleSaveRepair}>
-                <div className="grid gap-4 py-4 max-h-96 overflow-y-auto">
-                  <div className="space-y-2">
-                    <Label htmlFor="auto">Vehículo</Label>
-                    <Select value={formData.autoId} onValueChange={handleCarChange}>
+          <form onSubmit={editingReparacion ? handleUpdateReparacion : handleCreateReparacion} className="space-y-4">
+            <div>
+              <Label htmlFor="auto_id">Auto</Label>
+              <Select value={formData.auto_id} onValueChange={(value) => setFormData({ ...formData, auto_id: value })}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar vehículo" />
+                  <SelectValue placeholder="Seleccionar auto" />
                       </SelectTrigger>
                       <SelectContent>
-                        {cars.map((car) => (
-                          <SelectItem key={car._id} value={car._id}>
-                            {car.marca} {car.modelo} {car.año} - {car.placas}
+                  {autos.map((auto) => (
+                    <SelectItem key={auto._id} value={auto._id}>
+                      {auto.marca} {auto.modelo} ({auto.placas})
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="tipoReparacion">Tipo de Reparación</Label>
-                      <Select
-                        value={formData.tipoReparacion}
-                        onValueChange={(value) => setFormData({ ...formData, tipoReparacion: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar tipo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {tiposReparacion.map((tipo) => (
-                            <SelectItem key={tipo} value={tipo}>
-                              {tipo}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="costo">Costo ($)</Label>
+            <div>
+              <Label htmlFor="descripcion">Descripción de la reparación</Label>
                       <Input
-                        id="costo"
-                        type="number"
-                        step="0.01"
-                        value={formData.costo}
-                        onChange={(e) => setFormData({ ...formData, costo: Number.parseFloat(e.target.value) || 0 })}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="descripcion">Descripción</Label>
-                    <Textarea
                       id="descripcion"
                       value={formData.descripcion}
                       onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                      placeholder="Describe detalladamente la reparación..."
                       required
                     />
                   </div>
-
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="fechaInicio">Fecha de Inicio</Label>
+              <div>
+                <Label htmlFor="costo">Costo</Label>
                       <Input
-                        id="fechaInicio"
-                        type="date"
-                        value={formData.fechaInicio}
-                        onChange={(e) => setFormData({ ...formData, fechaInicio: e.target.value })}
+                  id="costo"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.costo}
+                  onChange={(e) => setFormData({ ...formData, costo: e.target.value })}
                         required
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="fechaFinalizacion">Fecha de Finalización</Label>
+              <div>
+                <Label htmlFor="fecha">Fecha</Label>
                       <Input
-                        id="fechaFinalizacion"
+                  id="fecha"
                         type="date"
-                        value={formData.fechaFinalizacion || ""}
-                        onChange={(e) => setFormData({ ...formData, fechaFinalizacion: e.target.value })}
+                  value={formData.fecha}
+                  onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
+                  required
                       />
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
+            <div>
                       <Label htmlFor="taller">Taller</Label>
                       <Input
                         id="taller"
-                        value={formData.taller || ""}
+                value={formData.taller}
                         onChange={(e) => setFormData({ ...formData, taller: e.target.value })}
-                        placeholder="Nombre del taller"
+                required
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="tecnico">Técnico</Label>
-                      <Input
-                        id="tecnico"
-                        value={formData.tecnico || ""}
-                        onChange={(e) => setFormData({ ...formData, tecnico: e.target.value })}
-                        placeholder="Nombre del técnico"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="estado">Estado</Label>
-                    <Select
-                      value={formData.estado}
-                      onValueChange={(value: any) => setFormData({ ...formData, estado: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pendiente">Pendiente</SelectItem>
-                        <SelectItem value="en_proceso">En Proceso</SelectItem>
-                        <SelectItem value="completada">Completada</SelectItem>
-                        <SelectItem value="cancelada">Cancelada</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="observaciones">Observaciones</Label>
-                    <Textarea
-                      id="observaciones"
-                      value={formData.observaciones || ""}
-                      onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
-                      placeholder="Observaciones adicionales..."
-                    />
-                  </div>
+            <div className="flex justify-end space-x-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowForm(false)
+                  setEditingReparacion(null)
+                  setFormData({ auto_id: "", descripcion: "", costo: "", fecha: "", taller: "" })
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit">
+                {editingReparacion ? "Actualizar" : "Crear"}
+              </Button>
                 </div>
-                <DialogFooter>
-                  <Button type="submit">{editingRepair ? "Actualizar" : "Crear"} Reparación</Button>
-                </DialogFooter>
               </form>
             </DialogContent>
           </Dialog>
-        </div>
-
-        {/* Filters */}
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <Search className="w-5 h-5 text-gray-400" />
-              <Input
-                placeholder="Buscar por vehículo, tipo, taller o técnico..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="flex-1"
-              />
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Filtrar por estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los estados</SelectItem>
-                  <SelectItem value="pendiente">Pendiente</SelectItem>
-                  <SelectItem value="en_proceso">En Proceso</SelectItem>
-                  <SelectItem value="completada">Completada</SelectItem>
-                  <SelectItem value="cancelada">Cancelada</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Repairs Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Lista de Reparaciones ({filteredRepairs.length})</CardTitle>
-            <CardDescription>Gestiona todas las reparaciones registradas en el sistema</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Vehículo</TableHead>
-                  <TableHead>Tipo de Reparación</TableHead>
-                  <TableHead>Descripción</TableHead>
-                  <TableHead>Costo</TableHead>
-                  <TableHead>Fechas</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredRepairs.map((repair) => (
-                  <TableRow key={repair._id}>
-                    <TableCell className="font-medium">{repair.autoInfo}</TableCell>
-                    <TableCell>{repair.tipoReparacion}</TableCell>
-                    <TableCell className="max-w-xs truncate">{repair.descripcion}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="w-3 h-3" />${repair.costo}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <div>Inicio: {new Date(repair.fechaInicio).toLocaleDateString()}</div>
-                        {repair.fechaFinalizacion && (
-                          <div className="text-gray-500">
-                            Fin: {new Date(repair.fechaFinalizacion).toLocaleDateString()}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusColor(repair.estado) as any}>{repair.estado.replace("_", " ")}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="outline" size="sm" onClick={() => handleEditRepair(repair)}>
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   )
 }

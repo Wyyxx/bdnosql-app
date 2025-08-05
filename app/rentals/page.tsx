@@ -1,513 +1,440 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Textarea } from "@/components/ui/textarea"
-import { Plus, Search, Edit, ArrowLeft, Calendar, DollarSign } from "lucide-react"
-import Link from "next/link"
+import { 
+  Plus, 
+  Search,
+  Edit,
+  Calendar,
+  Car,
+  User,
+  DollarSign,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  Clock
+} from "lucide-react"
+import { Label } from "@/components/ui/label"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-interface Rental {
-  _id?: string
-  clienteId: string
-  clienteNombre: string
-  autoId: string
-  autoInfo: string
-  fechaInicio: string
-  fechaFin: string
-  fechaDevolucionReal?: string
-  precioPorDia: number
-  diasRentados: number
-  montoTotal: number
-  estado: "activa" | "completada" | "cancelada" | "vencida"
-  observaciones?: string
-  fechaRegistro: string
+interface Cliente {
+  _id: string
+  nombre: string
+  correo: string
+  telefono: string
+  activo: boolean
+}
+
+interface Auto {
+  _id: string
+  marca: string
+  modelo: string
+  placas: string
+  disponible: boolean
+  categoria: string
+}
+
+interface Renta {
+  _id: string
+  cliente_id: string
+  auto_id: string
+  fecha_inicio: string
+  fecha_fin: string
+  precio_total: number
+  estatus: string
+  cliente?: {
+    nombre: string
+    correo: string
+    telefono: string
+  }
+  auto?: {
+    marca: string
+    modelo: string
+    placas: string
+    categoria: string
+  }
 }
 
 export default function RentalsPage() {
-  const [rentals, setRentals] = useState<Rental[]>([])
-  const [clients, setClients] = useState<any[]>([])
-  const [availableCars, setAvailableCars] = useState<any[]>([])
-  const [searchTerm, setSearchTerm] = useState("")
-  const [filterStatus, setFilterStatus] = useState<string>("all")
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [editingRental, setEditingRental] = useState<Rental | null>(null)
-  const [formData, setFormData] = useState<Rental>({
-    clienteId: "",
-    clienteNombre: "",
-    autoId: "",
-    autoInfo: "",
-    fechaInicio: "",
-    fechaFin: "",
-    precioPorDia: 0,
-    diasRentados: 0,
-    montoTotal: 0,
-    estado: "activa",
-    observaciones: "",
-    fechaRegistro: new Date().toISOString().split("T")[0],
+  const [rentas, setRentas] = useState<Renta[]>([])
+  const [clientes, setClientes] = useState<Cliente[]>([])
+  const [autos, setAutos] = useState<Auto[]>([])
+  const [loading, setLoading] = useState(false)
+  const [showForm, setShowForm] = useState(false)
+  const [editingRenta, setEditingRenta] = useState<Renta | null>(null)
+  const [formData, setFormData] = useState({
+    cliente_id: '',
+    auto_id: '',
+    fecha_inicio: '',
+    fecha_fin: '',
+    precio_total: '',
+    estatus: 'activa'
   })
 
+  // Cargar datos
+  const fetchData = async () => {
+    setLoading(true)
+    try {
+      // Cargar rentas
+      const rentasResponse = await fetch('/api/rentas')
+      const rentasData = await rentasResponse.json()
+      
+      // Cargar clientes
+      const clientesResponse = await fetch('/api/clientes')
+      const clientesData = await clientesResponse.json()
+      
+      // Cargar autos
+      const autosResponse = await fetch('/api/autos')
+      const autosData = await autosResponse.json()
+
+      if (rentasData.success && clientesData.success && autosData.success) {
+        setRentas(rentasData.rentas || [])
+        setClientes(clientesData.clientes || [])
+        setAutos(autosData.autos || [])
+      }
+    } catch (error) {
+      console.error('Error cargando datos:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    loadRentals()
-    loadClients()
-    loadAvailableCars()
+    fetchData()
   }, [])
 
-  // TODO: Implementar carga de rentas desde MongoDB
-  const loadRentals = async () => {
-    // Aquí irá la lógica para cargar rentas desde MongoDB
-    // Ejemplo: const rentalsData = await getRentals()
+  // Crear nueva renta
+  const handleCreateRenta = async () => {
+    try {
+      const response = await fetch('/api/rentas', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
 
-    // Datos simulados
-    const mockRentals: Rental[] = [
-      {
-        _id: "1",
-        clienteId: "1",
-        clienteNombre: "Juan Pérez",
-        autoId: "1",
-        autoInfo: "Toyota Corolla 2022 - ABC-123",
-        fechaInicio: "2024-03-01",
-        fechaFin: "2024-03-05",
-        precioPorDia: 800,
-        diasRentados: 4,
-        montoTotal: 3200,
-        estado: "activa",
-        observaciones: "Cliente frecuente",
-        fechaRegistro: "2024-02-28",
-      },
-      {
-        _id: "2",
-        clienteId: "2",
-        clienteNombre: "María González",
-        autoId: "2",
-        autoInfo: "Honda Civic 2023 - XYZ-789",
-        fechaInicio: "2024-02-15",
-        fechaFin: "2024-02-20",
-        fechaDevolucionReal: "2024-02-20",
-        precioPorDia: 900,
-        diasRentados: 5,
-        montoTotal: 4500,
-        estado: "completada",
-        fechaRegistro: "2024-02-14",
-      },
-    ]
-    setRentals(mockRentals)
-  }
+      const data = await response.json()
 
-  // TODO: Implementar carga de clientes desde MongoDB
-  const loadClients = async () => {
-    // Ejemplo: const clientsData = await getActiveClients()
-    const mockClients = [
-      { _id: "1", nombre: "Juan", apellido: "Pérez" },
-      { _id: "2", nombre: "María", apellido: "González" },
-    ]
-    setClients(mockClients)
-  }
-
-  // TODO: Implementar carga de autos disponibles desde MongoDB
-  const loadAvailableCars = async () => {
-    // Ejemplo: const carsData = await getAvailableCars()
-    const mockCars = [
-      { _id: "1", marca: "Toyota", modelo: "Corolla", año: 2022, placas: "ABC-123", precioPorDia: 800 },
-      { _id: "3", marca: "Nissan", modelo: "Sentra", año: 2023, placas: "DEF-456", precioPorDia: 750 },
-    ]
-    setAvailableCars(mockCars)
-  }
-
-  // Calcular días y monto total cuando cambian las fechas
-  useEffect(() => {
-    if (formData.fechaInicio && formData.fechaFin && formData.precioPorDia) {
-      const inicio = new Date(formData.fechaInicio)
-      const fin = new Date(formData.fechaFin)
-      const dias = Math.ceil((fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24))
-
-      if (dias > 0) {
-        setFormData((prev) => ({
-          ...prev,
-          diasRentados: dias,
-          montoTotal: dias * prev.precioPorDia,
-        }))
+      if (data.success) {
+        alert('Renta creada exitosamente')
+        setShowForm(false)
+        setFormData({
+          cliente_id: '',
+          auto_id: '',
+          fecha_inicio: '',
+          fecha_fin: '',
+          precio_total: '',
+          estatus: 'activa'
+        })
+        fetchData()
+      } else {
+        alert(data.error || 'Error creando renta')
       }
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Error de conexión')
     }
-  }, [formData.fechaInicio, formData.fechaFin, formData.precioPorDia])
+  }
 
-  // TODO: Implementar guardado de renta en MongoDB
-  const handleSaveRental = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // Actualizar renta
+  const handleUpdateRenta = async () => {
+    if (!editingRenta) return
 
-    if (editingRental) {
-      // Actualizar renta existente
-      // Ejemplo: await updateRental(editingRental._id, formData)
-      console.log("Actualizando renta:", formData)
-    } else {
-      // Crear nueva renta
-      // Ejemplo: await createRental(formData)
-      // También actualizar estado del auto a "rentado"
-      console.log("Creando nueva renta:", formData)
+    try {
+      const response = await fetch(`/api/rentas/${editingRenta._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        alert('Renta actualizada exitosamente')
+        setShowForm(false)
+        setEditingRenta(null)
+        setFormData({
+          cliente_id: '',
+          auto_id: '',
+          fecha_inicio: '',
+          fecha_fin: '',
+          precio_total: '',
+          estatus: 'activa'
+        })
+        fetchData()
+      } else {
+        alert(data.error || 'Error actualizando renta')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Error de conexión')
     }
+  }
 
-    await loadRentals()
-    await loadAvailableCars()
-
-    // Resetear formulario
+  // Abrir formulario de edición
+  const openEditForm = (renta: Renta) => {
+    setEditingRenta(renta)
     setFormData({
-      clienteId: "",
-      clienteNombre: "",
-      autoId: "",
-      autoInfo: "",
-      fechaInicio: "",
-      fechaFin: "",
-      precioPorDia: 0,
-      diasRentados: 0,
-      montoTotal: 0,
-      estado: "activa",
-      observaciones: "",
-      fechaRegistro: new Date().toISOString().split("T")[0],
+      cliente_id: renta.cliente_id,
+      auto_id: renta.auto_id,
+      fecha_inicio: renta.fecha_inicio.split('T')[0],
+      fecha_fin: renta.fecha_fin.split('T')[0],
+      precio_total: renta.precio_total.toString(),
+      estatus: renta.estatus
     })
-    setEditingRental(null)
-    setIsDialogOpen(false)
+    setShowForm(true)
   }
 
-  const handleEditRental = (rental: Rental) => {
-    setEditingRental(rental)
-    setFormData(rental)
-    setIsDialogOpen(true)
+  // Formatear fecha
+  const formatearFecha = (fecha: string) => {
+    return new Date(fecha).toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    })
   }
 
-  const handleClientChange = (clientId: string) => {
-    const client = clients.find((c) => c._id === clientId)
-    if (client) {
-      setFormData((prev) => ({
-        ...prev,
-        clienteId: clientId,
-        clienteNombre: `${client.nombre} ${client.apellido}`,
-      }))
-    }
+  // Formatear precio
+  const formatearPrecio = (precio: number) => {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN'
+    }).format(precio)
   }
 
-  const handleCarChange = (carId: string) => {
-    const car = availableCars.find((c) => c._id === carId)
-    if (car) {
-      setFormData((prev) => ({
-        ...prev,
-        autoId: carId,
-        autoInfo: `${car.marca} ${car.modelo} ${car.año} - ${car.placas}`,
-        precioPorDia: car.precioPorDia,
-      }))
-    }
-  }
-
-  const filteredRentals = rentals.filter((rental) => {
-    const matchesSearch =
-      rental.clienteNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rental.autoInfo.toLowerCase().includes(searchTerm.toLowerCase())
-
-    const matchesFilter = filterStatus === "all" || rental.estado === filterStatus
-
-    return matchesSearch && matchesFilter
-  })
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "activa":
-        return "default"
-      case "completada":
-        return "secondary"
-      case "cancelada":
-        return "destructive"
-      case "vencida":
-        return "outline"
+  // Obtener color del estatus
+  const getEstatusColor = (estatus: string) => {
+    switch (estatus) {
+      case 'activa':
+        return 'bg-green-100 text-green-800'
+      case 'finalizada':
+        return 'bg-blue-100 text-blue-800'
+      case 'cancelada':
+        return 'bg-red-100 text-red-800'
       default:
-        return "default"
+        return 'bg-gray-100 text-gray-800'
     }
   }
+
+  // Obtener autos disponibles
+  const autosDisponibles = autos.filter(auto => auto.disponible)
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Volver
-              </Button>
-            </Link>
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Gestión de Rentas</h1>
-              <p className="text-gray-600">Registrar y actualizar rentas de vehículos</p>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Gestión de Rentas
+              </h1>
+              <p className="text-gray-600">
+                Registrar y actualizar rentas de vehículos
+              </p>
             </div>
-          </div>
-
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button
-                onClick={() => {
-                  setEditingRental(null)
-                  setFormData({
-                    clienteId: "",
-                    clienteNombre: "",
-                    autoId: "",
-                    autoInfo: "",
-                    fechaInicio: "",
-                    fechaFin: "",
-                    precioPorDia: 0,
-                    diasRentados: 0,
-                    montoTotal: 0,
-                    estado: "activa",
-                    observaciones: "",
-                    fechaRegistro: new Date().toISOString().split("T")[0],
-                  })
-                }}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Nueva Renta
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
-                <DialogTitle>{editingRental ? "Editar Renta" : "Nueva Renta"}</DialogTitle>
-                <DialogDescription>
-                  {editingRental ? "Actualiza los datos de la renta" : "Registra una nueva renta de vehículo"}
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleSaveRental}>
-                <div className="grid gap-4 py-4 max-h-96 overflow-y-auto">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="cliente">Cliente</Label>
-                      <Select value={formData.clienteId} onValueChange={handleClientChange}>
+            <div className="flex items-center space-x-4">
+              <Dialog open={showForm} onOpenChange={setShowForm}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nueva Renta
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[600px]">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editingRenta ? 'Editar Renta' : 'Nueva Renta'}
+                    </DialogTitle>
+                    <DialogDescription>
+                      {editingRenta ? 'Actualiza los datos de la renta' : 'Registra una nueva renta de vehículo'}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="cliente_id">Cliente</Label>
+                      <Select value={formData.cliente_id} onValueChange={(value) => setFormData({...formData, cliente_id: value})}>
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccionar cliente" />
                         </SelectTrigger>
                         <SelectContent>
-                          {clients.map((client) => (
-                            <SelectItem key={client._id} value={client._id}>
-                              {client.nombre} {client.apellido}
+                          {clientes.filter(cliente => cliente.activo).map((cliente) => (
+                            <SelectItem key={cliente._id} value={cliente._id}>
+                              {cliente.nombre} - {cliente.correo}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="auto">Vehículo</Label>
-                      <Select value={formData.autoId} onValueChange={handleCarChange}>
+                    <div>
+                      <Label htmlFor="auto_id">Vehículo</Label>
+                      <Select value={formData.auto_id} onValueChange={(value) => setFormData({...formData, auto_id: value})}>
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccionar vehículo" />
                         </SelectTrigger>
                         <SelectContent>
-                          {availableCars.map((car) => (
-                            <SelectItem key={car._id} value={car._id}>
-                              {car.marca} {car.modelo} - {car.placas} (${car.precioPorDia}/día)
+                          {autosDisponibles.map((auto) => (
+                            <SelectItem key={auto._id} value={auto._id}>
+                              {auto.marca} {auto.modelo} ({auto.placas})
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="fechaInicio">Fecha de Inicio</Label>
+                    <div>
+                      <Label htmlFor="fecha_inicio">Fecha de Inicio</Label>
                       <Input
-                        id="fechaInicio"
+                        id="fecha_inicio"
                         type="date"
-                        value={formData.fechaInicio}
-                        onChange={(e) => setFormData({ ...formData, fechaInicio: e.target.value })}
-                        required
+                        value={formData.fecha_inicio}
+                        onChange={(e) => setFormData({...formData, fecha_inicio: e.target.value})}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="fechaFin">Fecha de Fin</Label>
+                    <div>
+                      <Label htmlFor="fecha_fin">Fecha de Fin</Label>
                       <Input
-                        id="fechaFin"
+                        id="fecha_fin"
                         type="date"
-                        value={formData.fechaFin}
-                        onChange={(e) => setFormData({ ...formData, fechaFin: e.target.value })}
-                        required
+                        value={formData.fecha_fin}
+                        onChange={(e) => setFormData({...formData, fecha_fin: e.target.value})}
                       />
+                    </div>
+                    <div>
+                      <Label htmlFor="precio_total">Precio Total</Label>
+                      <Input
+                        id="precio_total"
+                        type="number"
+                        placeholder="0.00"
+                        value={formData.precio_total}
+                        onChange={(e) => setFormData({...formData, precio_total: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="estatus">Estatus</Label>
+                      <Select value={formData.estatus} onValueChange={(value) => setFormData({...formData, estatus: value})}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="activa">Activa</SelectItem>
+                          <SelectItem value="finalizada">Finalizada</SelectItem>
+                          <SelectItem value="cancelada">Cancelada</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="precioPorDia">Precio por Día</Label>
-                      <Input
-                        id="precioPorDia"
-                        type="number"
-                        value={formData.precioPorDia}
-                        readOnly
-                        className="bg-gray-50"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="diasRentados">Días</Label>
-                      <Input
-                        id="diasRentados"
-                        type="number"
-                        value={formData.diasRentados}
-                        readOnly
-                        className="bg-gray-50"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="montoTotal">Monto Total</Label>
-                      <Input
-                        id="montoTotal"
-                        type="number"
-                        value={formData.montoTotal}
-                        readOnly
-                        className="bg-gray-50"
-                      />
-                    </div>
+                  <div className="flex justify-end space-x-2 mt-6">
+                    <Button variant="outline" onClick={() => setShowForm(false)}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={editingRenta ? handleUpdateRenta : handleCreateRenta}>
+                      {editingRenta ? 'Actualizar' : 'Crear'} Renta
+                    </Button>
                   </div>
-
-                  {editingRental && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="estado">Estado</Label>
-                        <Select
-                          value={formData.estado}
-                          onValueChange={(value: any) => setFormData({ ...formData, estado: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="activa">Activa</SelectItem>
-                            <SelectItem value="completada">Completada</SelectItem>
-                            <SelectItem value="cancelada">Cancelada</SelectItem>
-                            <SelectItem value="vencida">Vencida</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="fechaDevolucionReal">Fecha Devolución Real</Label>
-                        <Input
-                          id="fechaDevolucionReal"
-                          type="date"
-                          value={formData.fechaDevolucionReal || ""}
-                          onChange={(e) => setFormData({ ...formData, fechaDevolucionReal: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <Label htmlFor="observaciones">Observaciones</Label>
-                    <Textarea
-                      id="observaciones"
-                      value={formData.observaciones || ""}
-                      onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
-                      placeholder="Observaciones adicionales..."
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="submit">{editingRental ? "Actualizar" : "Crear"} Renta</Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+                </DialogContent>
+              </Dialog>
+              <Button variant="outline" onClick={() => window.history.back()}>
+                Volver
+              </Button>
+            </div>
+          </div>
         </div>
+      </div>
 
-        {/* Filters */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Resumen */}
         <Card className="mb-6">
           <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <Search className="w-5 h-5 text-gray-400" />
-              <Input
-                placeholder="Buscar por cliente o vehículo..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="flex-1"
-              />
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Filtrar por estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los estados</SelectItem>
-                  <SelectItem value="activa">Activa</SelectItem>
-                  <SelectItem value="completada">Completada</SelectItem>
-                  <SelectItem value="cancelada">Cancelada</SelectItem>
-                  <SelectItem value="vencida">Vencida</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">{rentas.length}</div>
+                <div className="text-sm text-gray-600">Total de rentas</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">
+                  {rentas.filter(renta => renta.estatus === 'activa').length}
+                </div>
+                <div className="text-sm text-gray-600">Rentas activas</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">
+                  {rentas.filter(renta => renta.estatus === 'finalizada').length}
+                </div>
+                <div className="text-sm text-gray-600">Rentas finalizadas</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-600">
+                  {rentas.filter(renta => renta.estatus === 'cancelada').length}
+                </div>
+                <div className="text-sm text-gray-600">Rentas canceladas</div>
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Rentals Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Lista de Rentas ({filteredRentals.length})</CardTitle>
-            <CardDescription>Gestiona todas las rentas registradas en el sistema</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Vehículo</TableHead>
-                  <TableHead>Fechas</TableHead>
-                  <TableHead>Duración</TableHead>
-                  <TableHead>Monto Total</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredRentals.map((rental) => (
-                  <TableRow key={rental._id}>
-                    <TableCell className="font-medium">{rental.clienteNombre}</TableCell>
-                    <TableCell>{rental.autoInfo}</TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {new Date(rental.fechaInicio).toLocaleDateString()}
-                        </div>
-                        <div className="text-gray-500">hasta {new Date(rental.fechaFin).toLocaleDateString()}</div>
+        {/* Lista de rentas */}
+        <div className="space-y-4">
+          {loading ? (
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center">Cargando rentas...</div>
+              </CardContent>
+            </Card>
+          ) : rentas.length === 0 ? (
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center text-gray-500">
+                  No hay rentas registradas
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            rentas.map((renta) => (
+              <Card key={renta._id}>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Renta #{renta._id.slice(-6)}
+                        </h3>
+                        <Badge className={getEstatusColor(renta.estatus)}>
+                          {renta.estatus}
+                        </Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {formatearPrecio(renta.precio_total)}
+                        </Badge>
                       </div>
-                    </TableCell>
-                    <TableCell>{rental.diasRentados} días</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="w-3 h-3" />${rental.montoTotal}
+                      <div className="mt-2 space-y-1 text-sm text-gray-600">
+                        <p><strong>Cliente:</strong> {renta.cliente?.nombre || 'Cliente no encontrado'}</p>
+                        <p><strong>Vehículo:</strong> {renta.auto ? `${renta.auto.marca} ${renta.auto.modelo} (${renta.auto.placas})` : 'Vehículo no encontrado'}</p>
+                        <p><strong>Período:</strong> {formatearFecha(renta.fecha_inicio)} - {formatearFecha(renta.fecha_fin)}</p>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusColor(rental.estado) as any}>{rental.estado}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="outline" size="sm" onClick={() => handleEditRental(rental)}>
-                        <Edit className="w-4 h-4" />
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openEditForm(renta)}
+                      >
+                        <Edit className="w-4 h-4 mr-1" />
+                        Editar
                       </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
       </div>
     </div>
   )
