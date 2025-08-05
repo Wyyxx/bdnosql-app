@@ -1,260 +1,120 @@
-# Sistema de Renta de Autos - Frontend
+# 🚗 Sistema de Gestión de Renta de Autos
 
-Este es el frontend completo para el sistema de renta de autos con MongoDB Atlas. La aplicación está estructurada para facilitar la implementación de la lógica de base de datos.
+Sistema completo de gestión para una empresa de renta de autos con roles de empleado, encargado y dueño.
 
-## 🚀 Características Implementadas
+## 📋 Características
 
-### Módulos Principales
-- **Dashboard** - Panel principal con estadísticas y navegación por roles
-- **Gestión de Clientes** - CRUD completo para clientes (RF01)
-- **Gestión de Autos** - CRUD completo para vehículos (RF02)
-- **Gestión de Rentas** - Registro y actualización de rentas (RF05)
-- **Gestión de Reparaciones** - Registro de reparaciones (RF03)
-- **Sistema de Roles** - Empleado, Encargado de Autos, Dueño
+### 👥 **Roles de Usuario:**
+- **Empleado**: Gestión de clientes, búsqueda de vehículos, registro de rentas
+- **Encargado**: Gestión de autos, reparaciones, devoluciones, alertas
+- **Dueño**: Consultas financieras, reportes, gestión de reparaciones
 
-### Funcionalidades por Rol
-
-#### Empleado Atención al Público
-- ✅ Mantener datos de cliente (RF01)
-- ✅ Buscar vehículos disponibles (RF07)
-- ✅ Registrar y actualizar rentas (RF05)
-
-#### Encargado de Autos
-- ✅ Mantener datos del auto (RF02)
-- ✅ Registrar reparaciones (RF03)
-- ✅ Registrar devoluciones (RF09)
-- ✅ Consultar autos más rentados (RF06)
-- ✅ Alertas de vehículos (RF08)
-
-#### Dueño
-- ✅ Consultar reparaciones por periodo (RF04)
+### 🔧 **Funcionalidades Principales:**
+- ✅ Sistema de autenticación por roles
+- ✅ Gestión completa de clientes
+- ✅ Gestión de vehículos y disponibilidad
+- ✅ Registro y seguimiento de rentas
+- ✅ Sistema de devoluciones con alertas
+- ✅ Gestión de reparaciones
+- ✅ Notificaciones en tiempo real
 - ✅ Reportes financieros
-- ✅ Análisis de rentabilidad
+- ✅ Dashboard interactivo por rol
 
-## 🛠️ Tecnologías Utilizadas
+## 🚀 Instalación y Configuración
 
-- **Next.js 14** - Framework React con App Router
-- **TypeScript** - Tipado estático
-- **Tailwind CSS** - Estilos
-- **shadcn/ui** - Componentes de UI
-- **Lucide React** - Iconos
-- **MongoDB Atlas** - Base de datos en la nube
+### **Prerrequisitos:**
+- Node.js 18+ 
+- npm, yarn, o pnpm
+- MongoDB Atlas (cuenta gratuita)
 
-## 🚀 Instalación Rápida
-
-### 1. Clonar el repositorio
+### **1. Clonar el Repositorio:**
 ```bash
-git clone <tu-repo>
+git clone <URL_DEL_REPOSITORIO>
 cd bdnosql-app
 ```
 
-### 2. Instalar dependencias
+### **2. Instalar Dependencias:**
 ```bash
 npm install
+# o
+yarn install
+# o
+pnpm install
 ```
 
-### 3. Configurar variables de entorno (Automático)
-```bash
-npm run setup
-```
-Este comando creará automáticamente el archivo `.env.local` con instrucciones para MongoDB Atlas.
-
-### 4. Configurar MongoDB Atlas
-1. Ve a [MongoDB Atlas](https://cloud.mongodb.com) y crea una cuenta gratuita
-2. Crea un nuevo cluster (gratuito)
-3. En "Database Access", crea un usuario y contraseña
-4. En "Network Access", agrega tu IP (o `0.0.0.0/0` para permitir todas)
-5. En "Database", crea una base de datos llamada `ConAutos_DB`
-6. Copia la URI de conexión y reemplaza "usuario" y "contraseña" en `.env.local`
-
-### 5. Probar la conexión (Opcional)
-```bash
-npm run test-db
-```
-
-### 6. Ejecutar la aplicación
-```bash
-npm run dev
-```
-
-## 📁 Estructura del Proyecto Completa
-
-```
-app/
-├── page.tsx                    # Login
-├── dashboard/page.tsx          # Dashboard principal
-├── clients/page.tsx           # Gestión de clientes (RF01)
-├── cars/
-│   ├── page.tsx              # Gestión de autos (RF02)
-│   └── search/page.tsx       # Búsqueda de vehículos (RF07)
-├── rentals/page.tsx          # Gestión de rentas (RF05)
-├── repairs/page.tsx          # Gestión de reparaciones (RF03)
-├── returns/page.tsx          # Devoluciones (RF09)
-├── alerts/page.tsx           # Sistema de alertas (RF08)
-└── reports/
-    ├── repairs/page.tsx      # Reportes de reparaciones (RF04)
-    ├── rentals/page.tsx      # Reportes de rentas (RF06)
-    └── financial/page.tsx    # Análisis financiero
-```
-
-## 🔧 Configuración Manual (Si el setup automático no funciona)
-
-### 1. Variables de Entorno
-Crea un archivo `.env.local` con:
+### **3. Configurar Variables de Entorno:**
+Crear un archivo `.env.local` en la raíz del proyecto:
 
 ```env
-# MongoDB Atlas (Recomendado)
-MONGODB_URI=mongodb+srv://usuario:contraseña@cluster.mongodb.net/
+# MongoDB Atlas
+MONGODB_URI=mongodb+srv://Admon:aGfVRAQ9dwEwNpSi@escuela.rr7gjjr.mongodb.net/
 
-# MongoDB local (Alternativa)
-# MONGODB_URI=mongodb://localhost:27017/ConAutos_DB
+# Next.js
+NEXTAUTH_SECRET=tu_secret_key_aqui
+NEXTAUTH_URL=http://localhost:3000
 ```
 
-### 2. Instalación de Dependencias MongoDB
+### **5. Ejecutar Scripts de Configuración:**
+
+#### **Configurar Variables de Entorno:**
 ```bash
-npm install mongodb bcryptjs
-npm install -D @types/bcryptjs
+node scripts/setup-env.js
 ```
 
-### 3. Implementar Funciones MongoDB
+#### **Probar Conexión a la Base de Datos:**
+```bash
+node scripts/test-db.js
+```
 
-El archivo `lib/mongodb-helpers.ts` contiene todas las funciones que necesitas implementar. Cada función tiene comentarios TODO con ejemplos de implementación.
+#### **Crear Datos de Prueba:**
+```bash
+# Crear usuarios de prueba
+node scripts/test-users.js
 
-#### Funciones Principales a Implementar:
+# Crear autos de prueba
+node scripts/test-autos.js
 
-**Autenticación:**
-- `authenticateUser()` - Validar credenciales de usuario
+# Crear clientes de prueba
+node scripts/test-clientes.js
 
-**Clientes (RF01):**
-- `getClients()` - Obtener todos los clientes
-- `createClient()` - Crear nuevo cliente
-- `updateClient()` - Actualizar cliente
-- `deleteClient()` - Eliminar cliente
+# Crear rentas de prueba
+node scripts/test-rentas.js
 
-**Autos (RF02):**
-- `getCars()` - Obtener todos los autos
-- `createCar()` - Crear nuevo auto
-- `updateCar()` - Actualizar auto
-- `getAvailableCars()` - Autos disponibles (RF07)
+# Crear reparaciones de prueba
+node scripts/test-reparaciones.js
 
-**Rentas (RF05):**
-- `getRentals()` - Obtener rentas
-- `createRental()` - Crear nueva renta
-- `updateRental()` - Actualizar renta
+# Crear devoluciones y alertas de prueba
+node scripts/test-devoluciones-alertas.js
 
-**Reparaciones (RF03, RF04):**
-- `getRepairs()` - Obtener reparaciones
-- `createRepair()` - Crear reparación
-- `getRepairsByDateRange()` - Reparaciones por periodo (RF04)
+# Crear notificaciones de prueba
+node scripts/test-notificaciones.js
+```
 
-**Reportes:**
-- `getMostRentedCars()` - Autos más rentados (RF06)
-- `getDashboardStats()` - Estadísticas del dashboard
-
-### Nuevas Funciones MongoDB a Implementar:
-
-**Búsqueda Avanzada (RF07):**
-- `searchAvailableCarsWithFilters()` - Búsqueda con filtros múltiples
-
-**Devoluciones (RF09):**
-- `getReturns()` - Obtener devoluciones
-- `getActiveRentals()` - Rentas activas para devolver
-
-**Alertas (RF08):**
-- `resolveAlert()` - Resolver alertas
-
-**Reportes Financieros:**
-- `getFinancialReport()` - Datos financieros por periodo
-
-### 4. Estructura de Base de Datos
-
-El archivo `scripts/create-database.js` contiene la estructura completa de colecciones sugerida:
-
-- **users** - Usuarios del sistema
-- **clients** - Clientes
-- **cars** - Autos
-- **rentals** - Rentas
-- **repairs** - Reparaciones
-- **returns** - Devoluciones
-- **alerts** - Alertas
-
-## 🚀 Cómo Empezar
-
-### 1. Instalar Dependencias
-\`\`\`bash
-npm install
-\`\`\`
-
-### 2. Configurar MongoDB
-- Instala MongoDB localmente o usa MongoDB Atlas
-- Configura las variables de entorno
-- Ejecuta el script de creación de base de datos
-
-### 3. Implementar Funciones MongoDB
-- Completa las funciones en `lib/mongodb-helpers.ts`
-- Reemplaza los datos simulados con llamadas reales a MongoDB
-
-### 4. Ejecutar la Aplicación
-\`\`\`bash
+### **6. Ejecutar el Proyecto:**
+```bash
 npm run dev
-\`\`\`
+# o
+yarn dev
+# o
+pnpm dev
+```
 
-## 📋 Lista de TODOs para MongoDB
 
-### Prioridad Alta
-- [ ] Implementar `connectToDatabase()` en `mongodb-helpers.ts`
-- [ ] Implementar `authenticateUser()` para login
-- [ ] Implementar funciones CRUD de clientes
-- [ ] Implementar funciones CRUD de autos
-- [ ] Implementar funciones CRUD de rentas
+## 📁 **Estructura del Proyecto:**
 
-### Prioridad Media
-- [ ] Implementar funciones de reparaciones
-- [ ] Implementar sistema de devoluciones
-- [ ] Implementar reportes y consultas
-- [ ] Implementar sistema de alertas
-
-### Prioridad Baja
-- [ ] Implementar backups automáticos
-- [ ] Implementar logs del sistema
-- [ ] Configurar permisos de base de datos
-
-## 🔐 Usuarios de Prueba
-
-Una vez implementada la autenticación, puedes crear estos usuarios:
-
-\`\`\`javascript
-// Empleado
-{
-  username: "empleado1",
-  password: "123456",
-  role: "empleado",
-  nombre: "Juan Empleado"
-}
-
-// Encargado
-{
-  username: "encargado1", 
-  password: "123456",
-  role: "encargado",
-  nombre: "María Encargada"
-}
-
-// Dueño
-{
-  username: "dueno1",
-  password: "123456", 
-  role: "dueno",
-  nombre: "Carlos Dueño"
-}
-\`\`\`
-
-## 📞 Soporte
-
-El frontend está completamente funcional con datos simulados. Solo necesitas:
-
-1. Configurar MongoDB
-2. Implementar las funciones en `mongodb-helpers.ts`
-3. Reemplazar `console.log()` con llamadas reales a las funciones
-
-¡Todo está preparado para una implementación rápida y sencilla de MongoDB! 🎉
+```
+bdnosql-app/
+├── app/                    # Páginas y APIs de Next.js
+│   ├── api/               # APIs del backend
+│   ├── dashboard/         # Dashboards por rol
+│   ├── cars/             # Gestión de vehículos
+│   ├── clients/          # Gestión de clientes
+│   ├── rentals/          # Gestión de rentas
+│   ├── returns/          # Gestión de devoluciones
+│   ├── repairs/          # Gestión de reparaciones
+│   └── alerts/           # Sistema de alertas
+├── components/            # Componentes reutilizables
+├── lib/                  # Utilidades y helpers
+├── scripts/              # Scripts de configuración
+└── public/               # Archivos estáticos
+```

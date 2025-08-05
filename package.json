@@ -7,8 +7,10 @@
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",
-    "setup": "node scripts/setup-env.js",
-    "test-db": "node scripts/test-db.js"
+    "setup": "node scripts/setup-project.js",
+    "test-db": "node scripts/test-db.js",
+    "setup-data": "node scripts/test-users.js && node scripts/test-autos.js && node scripts/test-clientes.js && node scripts/test-rentas.js && node scripts/test-reparaciones.js && node scripts/test-devoluciones-alertas.js && node scripts/test-notificaciones.js",
+    "reset-db": "node scripts/reset-database.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
