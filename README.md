@@ -1,6 +1,6 @@
 # Sistema de Renta de Autos - Frontend
 
-Este es el frontend completo para el sistema de renta de autos con MongoDB. La aplicación está estructurada para facilitar la implementación de la lógica de base de datos.
+Este es el frontend completo para el sistema de renta de autos con MongoDB Atlas. La aplicación está estructurada para facilitar la implementación de la lógica de base de datos.
 
 ## 🚀 Características Implementadas
 
@@ -38,10 +38,48 @@ Este es el frontend completo para el sistema de renta de autos con MongoDB. La a
 - **Tailwind CSS** - Estilos
 - **shadcn/ui** - Componentes de UI
 - **Lucide React** - Iconos
+- **MongoDB Atlas** - Base de datos en la nube
+
+## 🚀 Instalación Rápida
+
+### 1. Clonar el repositorio
+```bash
+git clone <tu-repo>
+cd bdnosql-app
+```
+
+### 2. Instalar dependencias
+```bash
+npm install
+```
+
+### 3. Configurar variables de entorno (Automático)
+```bash
+npm run setup
+```
+Este comando creará automáticamente el archivo `.env.local` con instrucciones para MongoDB Atlas.
+
+### 4. Configurar MongoDB Atlas
+1. Ve a [MongoDB Atlas](https://cloud.mongodb.com) y crea una cuenta gratuita
+2. Crea un nuevo cluster (gratuito)
+3. En "Database Access", crea un usuario y contraseña
+4. En "Network Access", agrega tu IP (o `0.0.0.0/0` para permitir todas)
+5. En "Database", crea una base de datos llamada `ConAutos_DB`
+6. Copia la URI de conexión y reemplaza "usuario" y "contraseña" en `.env.local`
+
+### 5. Probar la conexión (Opcional)
+```bash
+npm run test-db
+```
+
+### 6. Ejecutar la aplicación
+```bash
+npm run dev
+```
 
 ## 📁 Estructura del Proyecto Completa
 
-\`\`\`
+```
 app/
 ├── page.tsx                    # Login
 ├── dashboard/page.tsx          # Dashboard principal
@@ -57,24 +95,26 @@ app/
     ├── repairs/page.tsx      # Reportes de reparaciones (RF04)
     ├── rentals/page.tsx      # Reportes de rentas (RF06)
     └── financial/page.tsx    # Análisis financiero
-\`\`\`
+```
 
-## 🔧 Configuración para MongoDB
+## 🔧 Configuración Manual (Si el setup automático no funciona)
 
 ### 1. Variables de Entorno
 Crea un archivo `.env.local` con:
 
-\`\`\`env
-MONGODB_URI=mongodb://localhost:27017/car_rental_system
-# o para MongoDB Atlas:
-# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/car_rental_system
-\`\`\`
+```env
+# MongoDB Atlas (Recomendado)
+MONGODB_URI=mongodb+srv://usuario:contraseña@cluster.mongodb.net/
+
+# MongoDB local (Alternativa)
+# MONGODB_URI=mongodb://localhost:27017/ConAutos_DB
+```
 
 ### 2. Instalación de Dependencias MongoDB
-\`\`\`bash
+```bash
 npm install mongodb bcryptjs
 npm install -D @types/bcryptjs
-\`\`\`
+```
 
 ### 3. Implementar Funciones MongoDB
 
