@@ -9,100 +9,130 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Car, Users, Wrench } from "lucide-react"
+import DebugUsers from "@/components/debug-users"
 
 export default function LoginPage() {
   const [credentials, setCredentials] = useState({
-    username: "",
-    password: "",
-    role: "",
+    correo: "",
+    contraseña: "",
   })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
 
-  // TODO: Implementar autenticación con MongoDB
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Login attempt:", credentials)
-    // Aquí irá la lógica de autenticación con MongoDB
-    // Ejemplo: const user = await authenticateUser(credentials)
+    setLoading(true)
+    setError("")
 
-    // Simulación de login exitoso
-    if (credentials.username && credentials.password && credentials.role) {
-      localStorage.setItem("userRole", credentials.role)
-      localStorage.setItem("username", credentials.username)
-      window.location.href = "/dashboard"
+    try {
+      console.log('🔍 Intentando login con:', credentials.correo)
+      
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(credentials),
+      })
+
+      const data = await response.json()
+      console.log('📡 Respuesta del servidor:', data)
+
+      if (response.ok) {
+        console.log('✅ Login exitoso')
+        // Guardar información del usuario en localStorage
+        localStorage.setItem("userRole", data.usuario.rol)
+        localStorage.setItem("username", data.usuario.nombre)
+        localStorage.setItem("userEmail", data.usuario.correo)
+        localStorage.setItem("userId", data.usuario._id)
+        
+        // También guardar en cookies para el middleware
+        document.cookie = `userRole=${data.usuario.rol}; path=/`
+        document.cookie = `username=${data.usuario.nombre}; path=/`
+        
+        // Redireccionar según el rol del usuario
+        const userRole = data.usuario.rol.toLowerCase()
+        let redirectUrl = "/dashboard"
+        
+        if (userRole === "empleado") {
+          redirectUrl = "/dashboard/empleado"
+        } else if (userRole === "encargado") {
+          redirectUrl = "/dashboard/encargado"
+        } else if (userRole === "dueño" || userRole === "dueno") {
+          redirectUrl = "/dashboard/dueno"
+        }
+        
+        console.log(`🔄 Redirigiendo a: ${redirectUrl} (Rol: ${userRole})`)
+        window.location.href = redirectUrl
+      } else {
+        console.log('❌ Error en login:', data.error)
+        setError(data.error || 'Error en el login')
+      }
+    } catch (error) {
+      console.error('❌ Error de conexión:', error)
+      setError('Error de conexión al servidor')
+    } finally {
+      setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
-            <Car className="w-6 h-6 text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="max-w-4xl mx-auto">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Formulario de Login */}
+          <div className="flex-1">
+            <Card className="w-full max-w-md mx-auto">
+              <CardHeader className="text-center">
+                <div className="mx-auto mb-4 w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+                  <Car className="w-6 h-6 text-white" />
+                </div>
+                <CardTitle className="text-2xl">Sistema de Renta de Autos</CardTitle>
+                <CardDescription>Ingresa tus credenciales para acceder</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="correo">Correo Electrónico</Label>
+                    <Input
+                      id="correo"
+                      type="email"
+                      placeholder="Ingresa tu correo electrónico"
+                      value={credentials.correo}
+                      onChange={(e) => setCredentials({ ...credentials, correo: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="contraseña">Contraseña</Label>
+                    <Input
+                      id="contraseña"
+                      type="password"
+                      placeholder="Ingresa tu contraseña"
+                      value={credentials.contraseña}
+                      onChange={(e) => setCredentials({ ...credentials, contraseña: e.target.value })}
+                      required
+                    />
+                  </div>
+                  {error && (
+                    <div className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-md">
+                      {error}
+                    </div>
+                  )}
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
           </div>
-          <CardTitle className="text-2xl">Sistema de Renta de Autos</CardTitle>
-          <CardDescription>Ingresa tus credenciales para acceder</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">Usuario</Label>
-              <Input
-                id="username"
-                type="text"
-                placeholder="Ingresa tu usuario"
-                value={credentials.username}
-                onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Ingresa tu contraseña"
-                value={credentials.password}
-                onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="role">Rol</Label>
-              <Select
-                value={credentials.role}
-                onValueChange={(value) => setCredentials({ ...credentials, role: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona tu rol" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="empleado">
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4" />
-                      Empleado Atención al Público
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="encargado">
-                    <div className="flex items-center gap-2">
-                      <Wrench className="w-4 h-4" />
-                      Encargado de Autos
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="dueno">
-                    <div className="flex items-center gap-2">
-                      <Car className="w-4 h-4" />
-                      Dueño
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button type="submit" className="w-full">
-              Iniciar Sesión
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+          
+          {/* Panel de Debug */}
+          <div className="flex-1">
+            <DebugUsers />
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

@@ -31,4 +31,16 @@ export async function testConnection() {
 
 const clientPromise = client.connect();
 
+// Función para conectar a la base de datos
+export async function connectToDatabase() {
+  try {
+    const client = await clientPromise;
+    const db = client.db("ConAutos_DB");
+    return { client, db };
+  } catch (error) {
+    console.error('Error conectando a la base de datos:', error);
+    throw new Error('Error de conexión a la base de datos');
+  }
+}
+
 export default clientPromise;
