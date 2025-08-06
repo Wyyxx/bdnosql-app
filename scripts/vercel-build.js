@@ -25,9 +25,17 @@ try {
   execSync('npm install --legacy-peer-deps', { stdio: 'inherit' });
   console.log('✅ Dependencias instaladas');
   
+  // Debuggear estructura
+  console.log('🔍 Debuggeando estructura...');
+  execSync('node scripts/vercel-debug.js', { stdio: 'inherit' });
+  
   // Verificar componentes
   console.log('🔍 Verificando componentes...');
   execSync('node scripts/verify-components.js', { stdio: 'inherit' });
+  
+  // Corregir imports problemáticos
+  console.log('🔧 Corrigiendo imports...');
+  execSync('node scripts/fix-imports.js', { stdio: 'inherit' });
   
   // Build del proyecto
   console.log('🏗️  Construyendo proyecto...');
