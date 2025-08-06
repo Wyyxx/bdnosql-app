@@ -9,6 +9,7 @@
     "start": "next start",
     "setup": "node scripts/setup-project.js",
     "test-db": "node scripts/test-db.js",
+    "vercel-check": "node scripts/vercel-check.js",
     "setup-data": "node scripts/test-users.js && node scripts/test-autos.js && node scripts/test-clientes.js && node scripts/test-rentas.js && node scripts/test-reparaciones.js && node scripts/test-devoluciones-alertas.js && node scripts/test-notificaciones.js",
     "reset-db": "node scripts/reset-database.js"
   },
